@@ -1,0 +1,25 @@
+[project]
+name = "pia-project-energy-analysis"
+version = "0.1.0"
+description = "US Weather and Energy Analysis Pipeline"
+authors = [
+    { name = "Raphael Daveal", email = "raphaeldaveal@gmail.com" }
+]
+dependencies = [
+    "requests",
+    "pandas",
+    "streamlit",
+    "plotly",
+    "scipy",
+    "python-dotenv", # For loading API keys from .env
+    "pyyaml",        # For loading config.yaml
+    "tenacity",      # For robust API retries with exponential backoff
+]
+requires-python = ">=3.9"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+python = "3.11"

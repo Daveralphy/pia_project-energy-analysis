@@ -1,0 +1,46 @@
+# config/config.yaml
+cities:
+  - name: "New York"
+    state: "New York"
+    noaa_station_id: "GHCND:USW00094728"
+    eia_region_code: "NYIS"
+    latitude: 40.7128 # Approximate coordinates for mapping
+    longitude: -74.0060
+  - name: "Chicago"
+    state: "Illinois"
+    noaa_station_id: "GHCND:USW00094846"
+    eia_region_code: "PJM"
+    latitude: 41.8781
+    longitude: -87.6298
+  - name: "Houston"
+    state: "Texas"
+    noaa_station_id: "GHCND:USW00012960"
+    eia_region_code: "ERCO"
+    latitude: 29.7604
+    longitude: -95.3698
+  - name: "Phoenix"
+    state: "Arizona"
+    noaa_station_id: "GHCND:USW00023183"
+    eia_region_code: "AZPS"
+    latitude: 33.4484
+    longitude: -112.0740
+  - name: "Seattle"
+    state: "Washington"
+    noaa_station_id: "GHCND:USW00024233"
+    eia_region_code: "SCL"
+    latitude: 47.6062
+    longitude: -122.3321
+
+api_endpoints:
+  noaa_base_url: "https://www.ncei.noaa.gov/cdo-web/api/v2/data"
+  eia_base_url: "https://api.eia.gov/v2/electricity/rto/daily-region-data/data/"
+
+data_paths:
+  raw_data_dir: "data/raw"
+  processed_data_dir: "data/processed"
+
+# You can add more config here later, e.g., temperature thresholds for quality checks
+# data_quality_thresholds:
+#   max_temp_fahrenheit: 130
+#   min_temp_fahrenheit: -50
+#   max_energy_consumption_negative: 0

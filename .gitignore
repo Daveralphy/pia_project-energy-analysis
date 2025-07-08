@@ -1,0 +1,46 @@
+# --- Python ---
+# Byte-compiled or optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+wheels/
+
+# --- Virtual Environment ---
+# Virtualenv directory
+.venv/
+venv/
+
+# --- Secrets ---
+# Environment variables file - DO NOT COMMIT API KEYS!
+.env
+
+# --- Data and Logs ---
+# Raw and processed data folders
+data/raw/
+data/processed/
+logs/
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+
+# --- OS-specific ---
+.DS_Store
+Thumbs.db
+
+# --- Testing ---
+.pytest_cache/
+.coverage
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+
+.env
