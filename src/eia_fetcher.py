@@ -3,7 +3,8 @@ import time
 
 def fetch_eia_data(base_url, api_key, ba_code, start_date, end_date, city_name=None):
     """
-    Fetches daily electricity demand data from the EIA API for a given region.
+    Fetches all hourly electricity demand data from the EIA API for a given region,
+    handling pagination automatically.
 
     Args:
         base_url (str): The base URL for the EIA API endpoint.
@@ -14,42 +15,55 @@ def fetch_eia_data(base_url, api_key, ba_code, start_date, end_date, city_name=N
         city_name (str, optional): The name of the city for better logging. Defaults to None.
 
     Returns:
-        list: A list of data records from the API, or an empty list if the request fails.
+        list: A list of all data records from the API, or an empty list if the request fails.
     """
     log_identifier = city_name if city_name else ba_code
-    
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    
-    params = {
-        'api_key': api_key,
-        'frequency': 'daily',
-        'data[0]': 'value', # Per API docs for this endpoint, 'value' is the required data field
-        'facets[respondent][]': ba_code,
-        'start': start_date,
-        'end': end_date,
-        'sort[0][column]': 'period',
-        'sort[0][direction]': 'asc',
-        'offset': 0,
-        'length': 50 # Max length, reduced for testing
-    }
 
-    for attempt in range(3): # Retry up to 3 times
-        try:
-            response = requests.get(base_url, headers=headers, params=params, timeout=15)
-            if response.status_code == 200:
-                data = response.json()
-                return data.get('response', {}).get('data', [])
-            elif response.status_code >= 500:
-                print(f"Server error ({response.status_code}) for {log_identifier}. Retrying in {2**attempt}s...")
+    all_data = []
+    offset = 0
+    api_length_per_request = 5000  # EIA's max length per request
+
+    while True:
+        params = {
+            'api_key': api_key,
+            'frequency': 'daily',  # Reverted to daily frequency for stability
+            'data[0]': 'value',
+            'facets[respondent][]': ba_code,
+            'start': start_date,  # Use YYYY-MM-DD format for daily
+            'end': end_date,
+            'sort[0][column]': 'period',
+            'sort[0][direction]': 'asc',
+            'offset': offset,
+            'length': api_length_per_request
+        }
+
+        for attempt in range(3):  # Retry up to 3 times
+            try:
+                response = requests.get(base_url, headers=headers, params=params, timeout=15)
+                if response.status_code == 200:
+                    response_data = response.json()
+                    data = response_data.get('response', {}).get('data', [])
+                    all_data.extend(data)
+                    break
+                elif response.status_code >= 500:
+                    print(f"Server error ({response.status_code}) for {log_identifier}. Retrying in {2**attempt}s...")
+                    time.sleep(2 ** attempt)
+                else:
+                    print(f"Client error fetching EIA data for {log_identifier}. Status: {response.status_code}, Response: {response.text}")
+                    return []
+            except requests.exceptions.RequestException as e:
+                print(f"A network error occurred for {log_identifier}: {e}. Retrying in {2**attempt}s...")
                 time.sleep(2 ** attempt)
-            else:
-                print(f"Client error fetching EIA data for {log_identifier}. Status: {response.status_code}, Response: {response.text}")
-                return []
-        except requests.exceptions.RequestException as e:
-            print(f"A network error occurred for {log_identifier}: {e}. Retrying in {2**attempt}s...")
-            time.sleep(2 ** attempt)
+        else:
+            print(f"Failed to fetch EIA data for {log_identifier} after multiple attempts.")
+            return []
 
-    print(f"Failed to fetch EIA data for {log_identifier} after multiple attempts.")
-    return []
+        if not data or len(data) < api_length_per_request:
+            break
+
+        offset += len(data)
+
+    return all_data

@@ -5,7 +5,7 @@ import time
 from config_loader import load_configuration
 from noaa_fetcher import fetch_noaa_data
 from eia_fetcher import fetch_eia_data
-from data_processor import process_noaa_data, process_eia_data, merge_and_save_data
+from data_processor import process_noaa_data, process_eia_data, merge_and_save_data, combine_processed_data
 
 def fetch_and_save_noaa_data(city, noaa_base_url, noaa_token, full_raw_data_path, start_date, end_date):
     """Fetches and saves NOAA weather data for a given city."""
@@ -86,8 +86,8 @@ def _setup_pipeline_parameters(config):
         return None
     
     return {
-        "noaa_base_url": noaa_base_url, "eia_base_url": eia_base_url,
-        "cities": cities, "full_raw_data_path": full_raw_data_path, "full_processed_data_path": full_processed_data_path,
+        "noaa_base_url": noaa_base_url, "eia_base_url": eia_base_url, "cities": cities,
+        "full_raw_data_path": full_raw_data_path, "full_processed_data_path": full_processed_data_path,
         "start_date": start_date, "end_date": end_date
     }
 
@@ -125,16 +125,23 @@ def main():
         noaa_file = fetch_and_save_noaa_data(city, params["noaa_base_url"], noaa_token, params["full_raw_data_path"], params["start_date"], params["end_date"])
         eia_file = fetch_and_save_eia_data(city, params["eia_base_url"], eia_api_key, params["full_raw_data_path"], params["start_date"], params["end_date"])
 
-        # Step 2: Process and merge the data if both files were created
-        if noaa_file and eia_file:
-            weather_df = process_noaa_data(noaa_file)
-            energy_df = process_eia_data(eia_file)
-            merge_and_save_data(weather_df, energy_df, city['name'], params["full_processed_data_path"])
-        
+        # Step 2: Process any available data
+        print(f"\nProcessing available data for {city['name']}...")
+
+        # Process each file if it exists, otherwise the result is None
+        weather_df = process_noaa_data(noaa_file) if noaa_file else None
+        energy_df = process_eia_data(eia_file) if eia_file else None
+
+        # Step 3: Merge and/or save the processed data
+        merge_and_save_data(weather_df, energy_df, city['name'], params["full_processed_data_path"])
+
         # Be a good API citizen: wait 1 second between requests to avoid rate-limiting.
         time.sleep(1)
 
-    print("\n--- Data Fetching Process Finished ---")
+    # Step 4: Combine all processed files into a master file
+    combine_processed_data(params["full_processed_data_path"])
+
+    print("\n--- All Processes Finished ---")
 
 if __name__ == "__main__":
     main()
