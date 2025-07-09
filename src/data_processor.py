@@ -105,13 +105,14 @@ def merge_and_save_data(weather_df, energy_df, city_name, processed_dir):
         print(f"Skipping save for {city_name} as no data was successfully processed.")
         return
 
-def combine_processed_data(processed_dir):
+def combine_processed_data(processed_dir, output_dir):
     """
     Finds all processed CSV files in a directory, combines them into a single
-    master DataFrame, and saves it as a new CSV file.
+    master DataFrame, and saves it to a new CSV file in a specified output directory.
 
     Args:
         processed_dir (str): The directory containing the processed city CSV files.
+        output_dir (str): The directory to save the final master file.
     """
     print("\n--- Combining All Processed Data ---")
     # Find all individual processed CSV files
@@ -136,7 +137,7 @@ def combine_processed_data(processed_dir):
     combined_df = pd.concat(df_list, ignore_index=True)
     combined_df.sort_values(by=['city', 'date'], inplace=True)
 
-    master_file_path = os.path.join(processed_dir, 'master_energy_weather_data.csv')
+    master_file_path = os.path.join(output_dir, 'master_energy_weather_data.csv')
     combined_df.to_csv(master_file_path, index=False)
     
     print(f"Successfully combined {len(df_list)} files into {master_file_path}")

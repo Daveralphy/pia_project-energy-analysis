@@ -71,10 +71,13 @@ def _setup_pipeline_parameters(config):
     project_root = os.path.dirname(os.path.dirname(__file__))
     raw_data_path = config.get('data_paths', {}).get('raw_data_dir', 'data/raw')
     processed_data_path = config.get('data_paths', {}).get('processed_data_dir', 'data/processed')
+    output_data_path = config.get('data_paths', {}).get('output_data_dir', 'data/output')
     full_raw_data_path = os.path.join(project_root, raw_data_path)
     full_processed_data_path = os.path.join(project_root, processed_data_path)
+    full_output_data_path = os.path.join(project_root, output_data_path)
     os.makedirs(full_raw_data_path, exist_ok=True)
     os.makedirs(full_processed_data_path, exist_ok=True)
+    os.makedirs(full_output_data_path, exist_ok=True)
 
     # Define a date range for the data fetch
     date_config = config.get('date_range', {})
@@ -88,6 +91,7 @@ def _setup_pipeline_parameters(config):
     return {
         "noaa_base_url": noaa_base_url, "eia_base_url": eia_base_url, "cities": cities,
         "full_raw_data_path": full_raw_data_path, "full_processed_data_path": full_processed_data_path,
+        "full_output_data_path": full_output_data_path,
         "start_date": start_date, "end_date": end_date
     }
 
@@ -139,7 +143,7 @@ def main():
         time.sleep(1)
 
     # Step 4: Combine all processed files into a master file
-    combine_processed_data(params["full_processed_data_path"])
+    combine_processed_data(params["full_processed_data_path"], params["full_output_data_path"])
 
     print("\n--- All Processes Finished ---")
 

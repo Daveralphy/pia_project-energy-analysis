@@ -38,6 +38,7 @@ api_endpoints:
 data_paths:
   raw_data_dir: "data/raw"
   processed_data_dir: "data/processed"
+  output_data_dir: "data/output"
 
 date_range:
   start_date: "2023-01-01"
