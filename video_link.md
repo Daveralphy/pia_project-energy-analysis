@@ -1,6 +1,6 @@
 # Video Presentation
 
-A 3-minute video presentation is available, covering:
+This is a 3-minute video presentation, covering:
 * The business problem and its impact.
 * A technical walkthrough of the pipeline architecture and a live demo.
 * Key results and insights from the dashboard.
