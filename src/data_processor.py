@@ -18,8 +18,9 @@ def process_noaa_data(raw_file_path):
         raw_file_path (str): The path to the raw NOAA JSON file.
 
     Returns:
-        pd.DataFrame: A DataFrame with daily weather data, or None if processing fails.
+        tuple: A tuple containing (pd.DataFrame, list of warnings), or (None, []) on failure.
     """
+    warnings = []
     try:
         with open(raw_file_path, 'r') as f:
             data = json.load(f)
@@ -27,6 +28,21 @@ def process_noaa_data(raw_file_path):
         df = pd.DataFrame(data)
         df['date'] = pd.to_datetime(df['date']).dt.date
         
+        # Data Quality Check: Look for duplicate datatype entries for the same date before pivoting.
+        # This prevents the pivot operation from failing with a ValueError.
+        if df.duplicated(subset=['date', 'datatype']).any():
+            duplicates = df[df.duplicated(subset=['date', 'datatype'], keep=False)].sort_values(by=['date', 'datatype'])
+            issue = f"Duplicate weather data points found. This can cause processing errors. Taking first entry."
+            warnings.append({
+                "file": os.path.basename(raw_file_path),
+                "check": "Duplicate Raw Data",
+                "level": "WARNING",
+                "message": issue,
+                "details": duplicates.to_dict('records')
+            })
+            print(f"  [!] DATA QUALITY WARNING for {os.path.basename(raw_file_path)}: {issue}")
+            df.drop_duplicates(subset=['date', 'datatype'], keep='first', inplace=True)
+
         # Pivot the table to get TMAX and TMIN as columns
         weather_df = df.pivot(index='date', columns='datatype', values='value').reset_index()
         
@@ -34,10 +50,42 @@ def process_noaa_data(raw_file_path):
         weather_df['TMAX_F'] = weather_df['TMAX'].apply(_convert_temp_to_fahrenheit)
         weather_df['TMIN_F'] = weather_df['TMIN'].apply(_convert_temp_to_fahrenheit)
         
-        return weather_df[['date', 'TMAX_F', 'TMIN_F']]
+        # Data Quality Check: Flag days where TMIN > TMAX, a logical impossibility.
+        invalid_temp_rows = weather_df.dropna(subset=['TMIN_F', 'TMAX_F'])[weather_df['TMIN_F'] > weather_df['TMAX_F']]
+        if not invalid_temp_rows.empty:
+            warning_msg = f"DATA QUALITY WARNING for {os.path.basename(raw_file_path)}:"
+            print(f"  [!] {warning_msg}")
+            for _, row in invalid_temp_rows.iterrows():
+                issue = f"Date {row.get('date')}: TMIN ({row.get('TMIN_F')}°F) > TMAX ({row.get('TMAX_F')}°F)."
+                print(f"      - {issue}")
+                warnings.append({
+                    "file": os.path.basename(raw_file_path),
+                    "check": "Temperature Logic",
+                    "level": "WARNING",
+                    "message": issue,
+                    "details": { "date": str(row.get('date')), "tmin_f": row.get('TMIN_F'), "tmax_f": row.get('TMAX_F') }
+                })
+
+        return weather_df[['date', 'TMAX_F', 'TMIN_F']], warnings
+    except ValueError as e:
+        # This can happen if pivot fails due to duplicate data from the API
+        error_message = f"ValueError during processing of NOAA file {os.path.basename(raw_file_path)}: {e}"
+        print(f"  [!] {error_message}")
+        warnings.append({
+            "file": os.path.basename(raw_file_path),
+            "check": "Data Pivoting",
+            "level": "ERROR",
+            "message": f"Could not pivot data, likely due to duplicate TMAX/TMIN values for a single day. Error: {e}",
+            "details": {}
+        })
+        return None, warnings # Return None for the dataframe, but include the critical warning
     except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
         print(f"Error processing NOAA file {raw_file_path}: {e}")
-        return None
+        return None, []
+    except Exception as e:
+        # Catch-all for any other unexpected errors
+        print(f"An unexpected error occurred while processing {raw_file_path}: {e}")
+        return None, []
 
 def process_eia_data(raw_file_path):
     """
@@ -47,8 +95,9 @@ def process_eia_data(raw_file_path):
         raw_file_path (str): The path to the raw EIA JSON file.
 
     Returns:
-        pd.DataFrame: A DataFrame with daily energy data, or None if processing fails.
+        tuple: A tuple containing (pd.DataFrame, list of warnings), or (None, []) on failure.
     """
+    warnings = []
     try:
         with open(raw_file_path, 'r') as f:
             data = json.load(f)
@@ -65,10 +114,30 @@ def process_eia_data(raw_file_path):
         daily_energy_df = df.groupby('date')['energy_mwh'].sum().reset_index()
         # Round the summed energy value to two decimal places
         daily_energy_df['energy_mwh'] = daily_energy_df['energy_mwh'].round(2)
-        return daily_energy_df
-    except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+
+        # Data Quality Check: Flag days with negative energy consumption.
+        negative_energy_rows = daily_energy_df[daily_energy_df['energy_mwh'] < 0]
+        if not negative_energy_rows.empty:
+            warning_msg = f"DATA QUALITY WARNING for {os.path.basename(raw_file_path)}:"
+            print(f"  [!] {warning_msg}")
+            for _, row in negative_energy_rows.iterrows():
+                issue = f"Date {row.get('date')}: Negative energy consumption detected ({row.get('energy_mwh')} MWh)."
+                print(f"      - {issue}")
+                warnings.append({
+                    "file": os.path.basename(raw_file_path),
+                    "check": "Negative Energy",
+                    "level": "WARNING",
+                    "message": issue,
+                    "details": { "date": str(row.get('date')), "energy_mwh": row.get('energy_mwh') }
+                })
+
+        return daily_energy_df, warnings
+    except (FileNotFoundError, json.JSONDecodeError, KeyError, ValueError) as e:
         print(f"Error processing EIA file {raw_file_path}: {e}")
-        return None
+        return None, []
+    except Exception as e:
+        print(f"An unexpected error occurred while processing {raw_file_path}: {e}")
+        return None, []
 
 def merge_and_save_data(weather_df, energy_df, city_name, processed_dir):
     """

@@ -1,7 +1,8 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
+import argparse
 from config_loader import load_configuration
 from noaa_fetcher import fetch_noaa_data
 from eia_fetcher import fetch_eia_data
@@ -32,7 +33,7 @@ def fetch_and_save_eia_data(city, eia_base_url, eia_api_key, full_raw_data_path,
     
     if not eia_ba_code:
         print(f"Skipping EIA data for {city_name}: no 'eia_ba_code' in config.")
-        return
+        return None
 
     print(f"Fetching EIA data for {city_name} (Balancing Authority: {eia_ba_code})...")
     energy_data = fetch_eia_data(eia_base_url, eia_api_key, eia_ba_code, start_date, end_date, city_name=city_name)
@@ -47,7 +48,7 @@ def fetch_and_save_eia_data(city, eia_base_url, eia_api_key, full_raw_data_path,
         print(f"Failed to fetch or no EIA data returned for {city_name}.")
         return None
 
-def _setup_pipeline_parameters(config):
+def _setup_pipeline_parameters(config, args):
     """
     Validates and extracts necessary parameters from the configuration object.
 
@@ -79,24 +80,37 @@ def _setup_pipeline_parameters(config):
     os.makedirs(full_processed_data_path, exist_ok=True)
     os.makedirs(full_output_data_path, exist_ok=True)
 
-    # Define a date range for the data fetch
-    date_config = config.get('date_range', {})
-    start_date = date_config.get('start_date')
-    end_date = date_config.get('end_date')
-
-    if not all([start_date, end_date]):
-        print("start_date or end_date is missing in config.yaml. Exiting.")
-        return None
+    # Define a date range for the data fetch based on command-line arguments
+    if args.days:
+        print(f"Mode: Historical fetch for the last {args.days} days.")
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=args.days)
+    elif args.daily:
+        print("Mode: Daily fetch for yesterday's data.")
+        # Set both start and end date to yesterday to fetch a single day's data
+        yesterday = datetime.now() - timedelta(days=1)
+        start_date = yesterday
+        end_date = yesterday
     
+    start_date_str = start_date.strftime('%Y-%m-%d')
+    end_date_str = end_date.strftime('%Y-%m-%d')
+
     return {
         "noaa_base_url": noaa_base_url, "eia_base_url": eia_base_url, "cities": cities,
         "full_raw_data_path": full_raw_data_path, "full_processed_data_path": full_processed_data_path,
         "full_output_data_path": full_output_data_path,
-        "start_date": start_date, "end_date": end_date
+        "start_date": start_date_str, "end_date": end_date_str
     }
 
 def main():
     """Main function to orchestrate the data fetching process."""
+    parser = argparse.ArgumentParser(description="Run the weather and energy data pipeline.")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--days", type=int, help="Fetch historical data for the specified number of past days.")
+    group.add_argument("--daily", action="store_true", help="Fetch data for the last full day.")
+    
+    args = parser.parse_args()
+
     print("--- Starting Data Fetching Process ---")
 
     # 1. Load Configuration
@@ -113,9 +127,12 @@ def main():
     print("Configuration and API keys loaded successfully.")
 
     # 2. Setup pipeline parameters from config
-    params = _setup_pipeline_parameters(config)
+    params = _setup_pipeline_parameters(config, args)
     if not params:
         return
+
+    # Initialize a list to hold all data quality warnings
+    all_warnings = []
 
     # 3. Fetch Data for Each City
     for city in params["cities"]:
@@ -133,8 +150,12 @@ def main():
         print(f"\nProcessing available data for {city['name']}...")
 
         # Process each file if it exists, otherwise the result is None
-        weather_df = process_noaa_data(noaa_file) if noaa_file else None
-        energy_df = process_eia_data(eia_file) if eia_file else None
+        weather_df, noaa_warnings = process_noaa_data(noaa_file) if noaa_file else (None, [])
+        energy_df, eia_warnings = process_eia_data(eia_file) if eia_file else (None, [])
+
+        # Collect warnings from both processors
+        all_warnings.extend(noaa_warnings)
+        all_warnings.extend(eia_warnings)
 
         # Step 3: Merge and/or save the processed data
         merge_and_save_data(weather_df, energy_df, city['name'], params["full_processed_data_path"])
@@ -144,6 +165,15 @@ def main():
 
     # Step 4: Combine all processed files into a master file
     combine_processed_data(params["full_processed_data_path"], params["full_output_data_path"])
+
+    # Step 5: Save the data quality report
+    if all_warnings:
+        report_path = os.path.join(params["full_output_data_path"], "data_quality_report.json")
+        print(f"\nSaving {len(all_warnings)} data quality warnings to {report_path}...")
+        with open(report_path, 'w') as f:
+            json.dump(all_warnings, f, indent=4)
+    else:
+        print("\nNo data quality issues found.")
 
     print("\n--- All Processes Finished ---")
 

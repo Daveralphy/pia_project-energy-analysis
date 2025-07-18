@@ -1,6 +1,7 @@
 import time
 import streamlit as st
 import pandas as pd
+import json
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -58,25 +59,49 @@ def main():
         if st.button("Force Data Refresh"):
             run_pipeline()
 
+        st.header("Analysis Options")
+        temp_metric = st.radio(
+            "Select Temperature Metric for Analysis",
+            ('Max Temperature (TMAX)', 'Min Temperature (TMIN)', 'Average Temperature'),
+            key='temp_metric_selector'
+        )
+
     st.title("U.S. Weather and Energy Consumption Analysis")
 
     df = load_data()
 
+    # Create a dynamic column for analysis based on user selection
+    if temp_metric == 'Max Temperature (TMAX)':
+        df['temp_for_analysis'] = df['TMAX_F']
+        temp_axis_label = "Max Temperature (°F)"
+    elif temp_metric == 'Min Temperature (TMIN)':
+        df['temp_for_analysis'] = df['TMIN_F']
+        temp_axis_label = "Min Temperature (°F)"
+    else:  # Average Temperature
+        df['temp_for_analysis'] = (df['TMAX_F'] + df['TMIN_F']) / 2
+        temp_axis_label = "Average Temperature (°F)"
+    
+    # Drop rows where the analysis temp is NaN to avoid issues in plots
+    df.dropna(subset=['temp_for_analysis'], inplace=True)
+
     # Create tabs for different analysis views
     st.markdown("---")
-    tab1, tab2, tab3, tab4 = st.tabs(["📍 Geographic Overview", "📈 Time Series Analysis", "🔗 Correlation Analysis", "🗓️ Usage Patterns"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📍 Geographic Overview", "📈 Time Series Analysis", "🔗 Correlation Analysis", "🗓️ Usage Patterns", "⚠️ Data Quality Report"])
 
     with tab1:
-        display_geographic_overview(df)
+        display_geographic_overview(df, 'temp_for_analysis', temp_axis_label)
     
     with tab2:
         display_time_series(df)
 
     with tab3:
-        display_correlation_analysis(df)
+        display_correlation_analysis(df, 'temp_for_analysis', temp_axis_label)
     
     with tab4:
-        display_usage_patterns_heatmap(df)
+        display_usage_patterns_heatmap(df, 'temp_for_analysis', temp_axis_label)
+
+    with tab5:
+        display_data_quality_report()
 
 def run_pipeline():
     """Triggers the main.py data pipeline as a background process and handles feedback."""
@@ -109,7 +134,7 @@ def run_pipeline():
         full_log = f"--- STDOUT ---\n{process.stdout}\n\n--- STDERR ---\n{process.stderr}"
         st.code(full_log, language='log')
 
-def display_geographic_overview(df):
+def display_geographic_overview(df, temp_col, temp_label):
     """Displays an interactive map of the latest data for each city."""
     st.header("Geographic Overview")
     latest_data = df.loc[df.groupby('city')['date'].idxmax()]
@@ -119,7 +144,7 @@ def display_geographic_overview(df):
         return
 
     # Prepare data for map, handling missing energy values gracefully
-    map_data = latest_data.dropna(subset=['latitude', 'longitude', 'TMAX_F']).copy()
+    map_data = latest_data.dropna(subset=['latitude', 'longitude', temp_col]).copy()
 
     if map_data.empty:
         st.warning("No data with coordinates and temperature available to display.")
@@ -137,17 +162,16 @@ def display_geographic_overview(df):
         lat="latitude",
         lon="longitude",
         size="size_for_map",
-        color="TMAX_F",
+        color=temp_col,
         hover_name="city",
-        hover_data={"TMAX_F": ":.1f°F", "hover_energy_text": True, "latitude": False, "longitude": False, "size_for_map": False},
+        hover_data={temp_col: ":.1f°F", "hover_energy_text": True, "latitude": False, "longitude": False, "size_for_map": False},
         color_continuous_scale=px.colors.sequential.Plasma,
         size_max=50,
         zoom=3,
         map_style="carto-positron"
     )
     # Customize the hover label for clarity
-    fig.update_layout(hovermode='x unified')
-    fig.update_traces(hovertemplate='<b>%{hovertext}</b><br>Max Temp: %{customdata[0]:.1f}°F<br>Energy: %{customdata[1]}<extra></extra>')
+    fig.update_traces(hovertemplate=f'<b>%{{hovertext}}</b><br>{temp_label}: %{{customdata[0]:.1f}}°F<br>Energy: %{{customdata[1]}}<extra></extra>')
     fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
     st.plotly_chart(fig, use_container_width=True)
 
@@ -158,38 +182,64 @@ def display_time_series(df):
     selected_city = st.selectbox("Select a City to Analyze", city_list, key="time_series_city")
 
     if selected_city == 'All Cities':
-        plot_df = df.groupby('date').agg({'TMAX_F': 'mean', 'energy_mwh': 'sum'}).reset_index()
+        # Aggregate both TMIN and TMAX for the shaded range
+        plot_df = df.groupby('date').agg({
+            'TMAX_F': 'mean',
+            'TMIN_F': 'mean',
+            'energy_mwh': 'sum'
+        }).reset_index()
     else:
         plot_df = df[df['city'] == selected_city].copy()
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Scatter(x=plot_df['date'], y=plot_df['TMAX_F'], name='Max Temperature (°F)', line=dict(color='orange')), secondary_y=False)
-    fig.add_trace(go.Scatter(x=plot_df['date'], y=plot_df['energy_mwh'], name='Energy (MWh)', line=dict(color='skyblue', dash='dot')), secondary_y=True)
+
+    # Add the lower bound of the temperature range (TMIN_F)
+    # This trace is made invisible in the legend and has a transparent line.
+    fig.add_trace(
+        go.Scatter(x=plot_df['date'], y=plot_df['TMIN_F'], mode='lines', line=dict(width=0), showlegend=False),
+        secondary_y=False
+    )
+
+    # Add the upper bound (TMAX_F) and fill the area down to the previous trace (TMIN_F)
+    fig.add_trace(
+        go.Scatter(
+            x=plot_df['date'], y=plot_df['TMAX_F'], name='Temperature Range (°F)',
+            fill='tonexty', fillcolor='rgba(255, 165, 0, 0.2)', # Fill area to the 'next y' trace
+            mode='lines', line=dict(color='rgba(255, 165, 0, 0.5)')
+        ),
+        secondary_y=False
+    )
+
+    # Add the energy demand trace on the secondary y-axis
+    fig.add_trace(
+        go.Scatter(x=plot_df['date'], y=plot_df['energy_mwh'], name='Energy (MWh)', line=dict(color='skyblue', dash='dot')),
+        secondary_y=True
+    )
+
     fig.update_layout(title_text=f"Temperature and Energy Demand for {selected_city}", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-    fig.update_xaxes(title_text="Date")
-    fig.update_yaxes(title_text="Max Temperature (°F)", secondary_y=False)
+    fig.update_yaxes(title_text="Temperature (°F)", secondary_y=False)
     fig.update_yaxes(title_text="Energy Demand (MWh)", secondary_y=True)
     st.plotly_chart(fig, use_container_width=True)
 
-def display_correlation_analysis(df):
+def display_correlation_analysis(df, temp_col, temp_label):
     """Displays a scatter plot to show correlation between temp and energy."""
-    st.header("Correlation Analysis")
+    st.header(f"Correlation Analysis: {temp_label} vs. Energy")
     
     # Calculate overall correlation
-    correlation = df['TMAX_F'].corr(df['energy_mwh'])
+    correlation = df[temp_col].corr(df['energy_mwh'])
     
     col1, col2 = st.columns([3, 1])
 
     with col1:
         fig = px.scatter(
             df,
-            x="TMAX_F",
+            x=temp_col,
             y="energy_mwh",
             color="city",
             trendline="ols", # Add Ordinary Least Squares regression line
             title="Temperature vs. Energy Consumption"
         )
-        fig.update_layout(xaxis_title="Max Temperature (°F)", yaxis_title="Energy Demand (MWh)")
+        fig.update_layout(xaxis_title=temp_label, yaxis_title="Energy Demand (MWh)")
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -200,13 +250,13 @@ def display_correlation_analysis(df):
         - **0:** No correlation
         - **-1:** Perfect negative correlation
         
-        This value measures the strength and direction of the linear relationship between daily max temperature and energy demand.
+        This value measures the strength and direction of the linear relationship between the selected temperature metric and energy demand.
         """)
 
-def display_usage_patterns_heatmap(df):
+def display_usage_patterns_heatmap(df, temp_col, temp_label):
     """Displays a heatmap of average energy usage by day of week and temperature."""
     st.header("Usage Patterns Heatmap")
-    st.write("Analyze the average energy demand based on the day of the week and the maximum daily temperature.")
+    st.write(f"Analyze the average energy demand based on the day of the week and the selected temperature metric ({temp_label}).")
 
     city_list = ['All Cities'] + sorted(df['city'].unique())
     selected_city = st.selectbox("Select a City to Analyze", city_list, key="heatmap_city")
@@ -222,7 +272,7 @@ def display_usage_patterns_heatmap(df):
     # Define temperature bins from -20F to 130F in 10-degree increments
     bins = list(range(-20, 131, 10))
     labels = [f"{i} to {i+9}°F" for i in bins[:-1]]
-    plot_df['temp_bin'] = pd.cut(plot_df['TMAX_F'], bins=bins, labels=labels, right=False)
+    plot_df['temp_bin'] = pd.cut(plot_df[temp_col], bins=bins, labels=labels, right=False)
 
     # Create pivot table for the heatmap
     heatmap_data = plot_df.pivot_table(
@@ -245,6 +295,41 @@ def display_usage_patterns_heatmap(df):
         title=f"Average Daily Energy Demand for {selected_city}"
     )
     st.plotly_chart(fig, use_container_width=True)
+
+def display_data_quality_report():
+    """Reads and displays the data quality report from the pipeline run."""
+    st.header("Data Quality Report")
+    st.write("This report shows any warnings or issues detected during the last data processing run.")
+
+    project_root = os.path.join(os.path.dirname(__file__), '..')
+    report_path = os.path.join(project_root, 'data', 'output', 'data_quality_report.json')
+
+    if not os.path.exists(report_path):
+        st.info("Data quality report not found. Please run the pipeline to generate it.")
+        return
+
+    try:
+        with open(report_path, 'r') as f:
+            warnings = json.load(f)
+        
+        if not warnings:
+            st.success("✅ No data quality issues were found in the last pipeline run. Great job!")
+            return
+
+        st.warning(f"Found {len(warnings)} data quality issue(s).")
+        
+        # Convert to DataFrame for better display
+        warnings_df = pd.DataFrame(warnings)
+        
+        # Reorder columns for clarity and display
+        display_cols = ['level', 'check', 'message', 'file']
+        st.dataframe(warnings_df[display_cols], use_container_width=True)
+
+        with st.expander("View Detailed Report (JSON)"):
+            st.json(warnings)
+
+    except (json.JSONDecodeError, FileNotFoundError):
+        st.error("Could not parse the data quality report. The JSON file may be corrupted or missing.")
 
 if __name__ == "__main__":
     main()

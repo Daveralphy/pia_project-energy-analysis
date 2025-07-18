@@ -1,6 +1,0 @@
-python-dotenv
-PyYAML
-requests
-tqdm
-Pandas
-numpy

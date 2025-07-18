@@ -1,6 +1,26 @@
 import requests
 import time
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, retry_if_result
 
+def _is_server_error(response):
+    """Return True if the response status code is a 5xx server error, indicating a retriable issue."""
+    return response.status_code >= 500
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=(retry_if_exception_type(requests.exceptions.RequestException) | retry_if_result(_is_server_error)),
+    reraise=True  # Reraise the last exception if all retries fail
+)
+def _make_noaa_api_request(url, headers, params, log_identifier):
+    """
+    Makes a single, robust request to the NOAA API, decorated to handle retries.
+    """
+    response = requests.get(url, headers=headers, params=params, timeout=20)
+    # If it's a client error (4xx), we don't want to retry. The main function will handle it.
+    # If it's a server error (5xx), tenacity's `retry_if_result` will trigger a retry.
+    return response
+ 
 def fetch_noaa_data(base_url, token, station_id, start_date, end_date, datatypes='TMAX,TMIN', city_name=None):
     """
     Fetches all weather data from the NOAA API for a given station and date range,
@@ -40,32 +60,30 @@ def fetch_noaa_data(base_url, token, station_id, start_date, end_date, datatypes
             'datatypeid': datatypes.split(','),
             'units': 'metric'  # Processor expects Celsius to convert to Fahrenheit
         }
-
-        for attempt in range(3):  # Retry up to 3 times
-            try:
-                response = requests.get(endpoint_url, headers=headers, params=params, timeout=15)
-                if response.status_code == 200:
-                    data = response.json()
-                    results = data.get('results', [])
-                    all_results.extend(results)
-                    break  # Break the retry loop on success
-                elif response.status_code >= 500:
-                    print(f"Server error ({response.status_code}) for {log_identifier}. Retrying in {2**attempt}s...")
-                    time.sleep(2 ** attempt)
-                else:
-                    print(f"Client error fetching NOAA data for {log_identifier}. Status: {response.status_code}, Response: {response.text}")
-                    return None  # Non-retriable client error
-            except requests.exceptions.RequestException as e:
-                print(f"A network error occurred for {log_identifier}: {e}. Retrying in {2**attempt}s...")
-                time.sleep(2 ** attempt)
-        else:  # This 'else' belongs to the 'for' loop, runs if it completes without break
-            print(f"Failed to fetch data for {log_identifier} after multiple attempts.")
+ 
+        try:
+            print(f"Requesting data for {log_identifier} with offset {offset}...")
+            response = _make_noaa_api_request(endpoint_url, headers, params, log_identifier)
+ 
+            if response.status_code != 200:
+                # This will catch non-retriable client errors (4xx)
+                print(f"Client error fetching NOAA data for {log_identifier}. Status: {response.status_code}, Response: {response.text}")
+                return None
+ 
+            data = response.json()
+            results = data.get('results', [])
+            all_results.extend(results)
+ 
+        except Exception as e:
+            # This catches the exception from tenacity if all retries fail
+            print(f"An unrecoverable error occurred for {log_identifier} after multiple attempts: {e}")
             return None
-
+ 
         # Check if we've fetched all the data
         if not results or len(results) < api_limit_per_request:
             break
         
         offset += len(results)
+        time.sleep(0.2) # Small delay to be a good API citizen between pagination requests
 
     return {'results': all_results}
