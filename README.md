@@ -62,14 +62,17 @@ pia_project-energy-analysis/
 ├── .env                      # Environment variables (e.g., API keys - DO NOT COMMIT!)
 ├── .gitignore                # Specifies files/directories to be ignored by Git
 ├── config/
-│   └── config.yaml           # API keys (placeholders), cities list, API endpoints, data paths
-├── src/
-│   ├── data_fetcher.py       # Handles all API interactions, error handling, and retries
-│   ├── data_processor.py     # Cleans, transforms, and prepares fetched data
-│   ├── analysis.py           # Contains functions for statistical analysis
-│   └── pipeline.py           # Orchestrates the data fetching and processing steps
+│   └── config.yaml           # Cities list, API endpoints, data paths
+├── pia_project_energy_analysis/
+│   ├── __init__.py           # Makes the directory a package
+│   ├── eia_fetcher.py        # Handles EIA API interactions
+│   ├── noaa_fetcher.py       # Handles NOAA API interactions
+│   ├── data_processor.py     # Cleans and transforms data
+│   └── pipeline.py           # Orchestrates the data pipeline
 ├── dashboards/
 │   └── app.py                # Streamlit application for the interactive dashboard
+├── utils/
+│   └── find_ids.py           # Helper script to find NOAA and EIA IDs for new cities
 ├── logs/
 │   └── pipeline.log          # Runtime logs for pipeline execution
 ├── data/
@@ -164,6 +167,14 @@ It's highly recommended to use a virtual environment to manage project dependenc
     * The `config/config.yaml` file is pre-populated with city information, API endpoints, and data paths.
     * Review its content to ensure it matches the project requirements (NOAA station IDs, EIA region codes, city coordinates). You may add custom thresholds for data quality checks here if desired.
 
+### 6. (Optional) Finding IDs for New Cities
+
+If you wish to add new cities to `config.yaml`, you can use the provided helper script to find the necessary `noaa_station_id` and `eia_ba_code`.
+
+```bash
+python utils/find_ids.py
+```
+This interactive script will query the NOAA and EIA APIs to help you find the correct IDs for your desired locations.
 ---
 
 ## How to Run the Pipeline
