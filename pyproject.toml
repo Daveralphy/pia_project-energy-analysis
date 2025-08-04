@@ -14,6 +14,7 @@ dependencies = [
     "python-dotenv", # For loading API keys from .env
     "pyyaml",        # For loading config.yaml
     "tenacity",      # For robust API retries with exponential backoff
+    "statsmodels",   # Required for OLS trendline in plotly
 ]
 requires-python = ">=3.9"
 
