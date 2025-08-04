@@ -30,6 +30,30 @@ cities:
     eia_ba_code: "SCL" # Seattle City Light
     latitude: 47.6062
     longitude: -122.3321
+  - name: "Los Angeles"
+    state: "California"
+    noaa_station_id: "GHCND:USW00023174" # Los Angeles International Airport
+    eia_ba_code: "CISO" # California Independent System Operator
+    latitude: 34.0522
+    longitude: -118.2437
+  - name: "Miami"
+    state: "Florida"
+    noaa_station_id: "GHCND:USW00012839" # Miami International Airport
+    eia_ba_code: "FPL" # Florida Power & Light
+    latitude: 25.7617
+    longitude: -80.1918
+  - name: "Denver"
+    state: "Colorado"
+    noaa_station_id: "GHCND:USW00003017" # Denver-Stapleton
+    eia_ba_code: "PSCO" # Public Service Company of Colorado
+    latitude: 39.7392
+    longitude: -104.9903
+  - name: "Boston"
+    state: "Massachusetts"
+    noaa_station_id: "GHCND:USW00014739" # Logan International Airport
+    eia_ba_code: "ISNE" # ISO New England
+    latitude: 42.3601
+    longitude: -71.0589
 
 api_endpoints:
   noaa_base_url: "https://www.ncei.noaa.gov/cdo-web/api/v2/"
@@ -39,7 +63,3 @@ data_paths:
   raw_data_dir: "data/raw"
   processed_data_dir: "data/processed"
   output_data_dir: "data/output"
-
-date_range:
-  start_date: "2023-01-01"
-  end_date: "2023-12-31"

@@ -181,7 +181,7 @@ def display_geographic_overview(df, temp_col, temp_label, selected_city):
     )
     # Customize the hover label for clarity
     fig.update_traces(hovertemplate=
-        f'<b>%{{hover_name}}</b><br>' +
+        f'<b>%{{hovertext}}</b><br>' +
         f'{temp_label}: %{{customdata[0]:.1f}}°F<br>' +
         'Energy: %{customdata[1]}<extra></extra>'
     )
