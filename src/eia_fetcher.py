@@ -1,5 +1,20 @@
 import requests
-import time
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, retry_if_result
+
+def _is_server_error(response):
+    """Return True if the response status code is a 5xx server error, indicating a retriable issue."""
+    return response.status_code >= 500
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=(retry_if_exception_type(requests.exceptions.RequestException) | retry_if_result(_is_server_error)),
+    reraise=True  # Reraise the last exception if all retries fail
+)
+def _make_eia_api_request(url, headers, params, log_identifier):
+    """Makes a single, robust request to the EIA API, decorated to handle retries."""
+    response = requests.get(url, headers=headers, params=params, timeout=15)
+    return response
 
 def fetch_eia_data(base_url, api_key, ba_code, start_date, end_date, city_name=None):
     """
@@ -40,25 +55,21 @@ def fetch_eia_data(base_url, api_key, ba_code, start_date, end_date, city_name=N
             'length': api_length_per_request
         }
 
-        for attempt in range(3):  # Retry up to 3 times
-            try:
-                response = requests.get(base_url, headers=headers, params=params, timeout=15)
-                if response.status_code == 200:
-                    response_data = response.json()
-                    data = response_data.get('response', {}).get('data', [])
-                    all_data.extend(data)
-                    break
-                elif response.status_code >= 500:
-                    print(f"Server error ({response.status_code}) for {log_identifier}. Retrying in {2**attempt}s...")
-                    time.sleep(2 ** attempt)
-                else:
-                    print(f"Client error fetching EIA data for {log_identifier}. Status: {response.status_code}, Response: {response.text}")
-                    return []
-            except requests.exceptions.RequestException as e:
-                print(f"A network error occurred for {log_identifier}: {e}. Retrying in {2**attempt}s...")
-                time.sleep(2 ** attempt)
-        else:
-            print(f"Failed to fetch EIA data for {log_identifier} after multiple attempts.")
+        try:
+            response = _make_eia_api_request(base_url, headers, params, log_identifier)
+
+            if response.status_code != 200:
+                # This will catch non-retriable client errors (4xx)
+                print(f"Client error fetching EIA data for {log_identifier}. Status: {response.status_code}, Response: {response.text}")
+                return []
+
+            response_data = response.json()
+            data = response_data.get('response', {}).get('data', [])
+            all_data.extend(data)
+
+        except Exception as e:
+            # This catches the exception from tenacity if all retries fail
+            print(f"An unrecoverable error occurred for {log_identifier} after multiple attempts: {e}")
             return []
 
         if not data or len(data) < api_length_per_request:

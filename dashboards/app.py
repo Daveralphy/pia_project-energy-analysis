@@ -1,4 +1,3 @@
-import time
 import streamlit as st
 import pandas as pd
 import json
@@ -6,8 +5,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import os
-import sys
-import subprocess
 import yaml
 
 def load_data():
@@ -20,8 +17,8 @@ def load_data():
     
     if not os.path.exists(data_path):
         st.error(f"Master data file not found at `{data_path}`.")
-        st.warning("Please run the main data pipeline first to generate the master data file. From your project root, execute:")
-        st.code("python src/main.py")
+        st.warning("The master data file is missing. Please run the main application to generate it. From your project root, execute:")
+        st.code("python run.py")
         st.stop() # Halt execution and display the messages
 
     # Load master data
@@ -52,23 +49,51 @@ def load_data():
 def main():
     """Main function to run the Streamlit dashboard."""
     st.set_page_config(page_title="Energy & Weather Analysis", layout="wide")
+    
+    df = load_data()
 
+    # --- Sidebar for Global Controls ---
     with st.sidebar:
-        st.header("Pipeline Controls")
-        st.write("Click the button below to trigger a full data refresh from the APIs.")
-        if st.button("Force Data Refresh"):
-            run_pipeline()
-
-        st.header("Analysis Options")
+        st.title("Analysis Options")
+        
         temp_metric = st.radio(
-            "Select Temperature Metric for Analysis",
+            "Select Temperature Metric",
             ('Max Temperature (TMAX)', 'Min Temperature (TMIN)', 'Average Temperature'),
             key='temp_metric_selector'
         )
 
-    st.title("U.S. Weather and Energy Consumption Analysis")
+        # Add date input dropdowns for start and end dates
+        if not df.empty:
+            min_date = df['date'].min().date()
+            max_date = df['date'].max().date()
 
-    df = load_data()
+            col1, col2 = st.columns(2)
+            with col1:
+                start_date = st.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date, key='start_date')
+            with col2:
+                end_date = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date, key='end_date')
+            
+            # Validate that the start date is not after the end date
+            if start_date > end_date:
+                st.error("Error: End date must be on or after start date.")
+                st.stop()
+
+        else:
+            st.warning("No data loaded to select a date range.")
+            st.stop()
+
+        city_list = ['All Cities'] + sorted(df['city'].unique())
+        selected_city = st.selectbox(
+            "Select a City",
+            options=city_list,
+            key="global_city_filter"
+        )
+
+    # Filter the main dataframe based on the selected date range from the sidebar
+    # Convert date objects from slider back to datetime for comparison with the dataframe column
+    start_datetime = pd.to_datetime(start_date)
+    end_datetime = pd.to_datetime(end_date)
+    df = df[(df['date'] >= start_datetime) & (df['date'] <= end_datetime)]
 
     # Create a dynamic column for analysis based on user selection
     if temp_metric == 'Max Temperature (TMAX)':
@@ -84,59 +109,42 @@ def main():
     # Drop rows where the analysis temp is NaN to avoid issues in plots
     df.dropna(subset=['temp_for_analysis'], inplace=True)
 
+    # Filter data based on the global multi-select city filter
+    if selected_city == 'All Cities':
+        display_df = df.copy()
+    else:
+        display_df = df[df['city'] == selected_city].copy()
+
+    # --- Main Dashboard Layout ---
+    st.title("U.S. Weather and Energy Consumption Analysis")
+
     # Create tabs for different analysis views
-    st.markdown("---")
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["📍 Geographic Overview", "📈 Time Series Analysis", "🔗 Correlation Analysis", "🗓️ Usage Patterns", "⚠️ Data Quality Report"])
 
     with tab1:
-        display_geographic_overview(df, 'temp_for_analysis', temp_axis_label)
+        # Pass the original, unfiltered dataframe `df` to the map to ensure consistent scaling
+        display_geographic_overview(df, 'temp_for_analysis', temp_axis_label, selected_city)
     
     with tab2:
-        display_time_series(df)
+        display_time_series(display_df, 'temp_for_analysis', temp_axis_label, selected_city)
 
     with tab3:
-        display_correlation_analysis(df, 'temp_for_analysis', temp_axis_label)
+        display_correlation_analysis(display_df, 'temp_for_analysis', temp_axis_label)
     
     with tab4:
-        display_usage_patterns_heatmap(df, 'temp_for_analysis', temp_axis_label)
+        display_usage_patterns_heatmap(display_df, 'temp_for_analysis', temp_axis_label, selected_city)
 
     with tab5:
         display_data_quality_report()
 
-def run_pipeline():
-    """Triggers the main.py data pipeline as a background process and handles feedback."""
-    st.info("Starting the data pipeline. This may take several minutes...")
-    
-    project_root = os.path.join(os.path.dirname(__file__), '..')
-    main_script_path = os.path.join(project_root, 'src', 'main.py')
-    
-    with st.spinner("Fetching and processing data in the background... Please wait."):
-        try:
-            process = subprocess.run(
-                [sys.executable, main_script_path],
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                check=False # Do not raise exception on non-zero exit code, we'll check it manually
-            )
-        except Exception as e:
-            st.error(f"An exception occurred while trying to run the pipeline: {e}")
-            return
-
-    if process.returncode == 0:
-        st.success("Data pipeline finished successfully!")
-        st.toast("Dashboard is reloading with new data...")
-        time.sleep(2)
-        st.rerun()
-    else:
-        st.error("The data pipeline encountered an error. See details below.")
-        # Show both stdout and stderr for comprehensive debugging
-        full_log = f"--- STDOUT ---\n{process.stdout}\n\n--- STDERR ---\n{process.stderr}"
-        st.code(full_log, language='log')
-
-def display_geographic_overview(df, temp_col, temp_label):
+def display_geographic_overview(df, temp_col, temp_label, selected_city):
     """Displays an interactive map of the latest data for each city."""
     st.header("Geographic Overview")
+    if df.empty:
+        st.info("Select one or more cities to display the geographic overview.")
+        return
+        
+    # This now operates on the FULL dataframe, ensuring consistent ranges for size and color.
     latest_data = df.loc[df.groupby('city')['date'].idxmax()]
 
     if 'latitude' not in latest_data.columns or latest_data['latitude'].isnull().any():
@@ -157,73 +165,88 @@ def display_geographic_overview(df, temp_col, temp_label):
         lambda x: f"{x:,.0f} MWh" if pd.notna(x) else "Energy data not available"
     )
 
-    fig = px.scatter_map(
+    fig = px.scatter_map( # The figure is now always created with data for ALL cities.
         map_data,
         lat="latitude",
         lon="longitude",
         size="size_for_map",
-        color=temp_col,
+        color="city", # Use city for distinct colors instead of temperature
         hover_name="city",
-        hover_data={temp_col: ":.1f°F", "hover_energy_text": True, "latitude": False, "longitude": False, "size_for_map": False},
-        color_continuous_scale=px.colors.sequential.Plasma,
+        # Use explicit custom_data for a more robust hover template
+        custom_data=[temp_col, 'hover_energy_text'],
+        color_discrete_sequence=px.colors.qualitative.Vivid, # Use a color scale with distinct colors
         size_max=50,
         zoom=3,
         map_style="carto-positron"
     )
     # Customize the hover label for clarity
-    fig.update_traces(hovertemplate=f'<b>%{{hovertext}}</b><br>{temp_label}: %{{customdata[0]:.1f}}°F<br>Energy: %{{customdata[1]}}<extra></extra>')
+    fig.update_traces(hovertemplate=
+        f'<b>%{{hover_name}}</b><br>' +
+        f'{temp_label}: %{{customdata[0]:.1f}}°F<br>' +
+        'Energy: %{customdata[1]}<extra></extra>'
+    )
     fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+
+    # If a specific city is selected, hide all other traces.
+    if selected_city != 'All Cities':
+        fig.update_traces(visible=False) # First, hide all traces
+        fig.update_traces(visible=True, selector=dict(name=selected_city)) # Then, make only the selected one visible
+
     st.plotly_chart(fig, use_container_width=True)
 
-def display_time_series(df):
+def display_time_series(df, temp_col, temp_label, selected_city):
     """Displays the time series analysis chart."""
-    st.header("Time Series Analysis: Temperature vs. Energy Demand")
-    city_list = ['All Cities'] + sorted(df['city'].unique())
-    selected_city = st.selectbox("Select a City to Analyze", city_list, key="time_series_city")
-
-    if selected_city == 'All Cities':
-        # Aggregate both TMIN and TMAX for the shaded range
-        plot_df = df.groupby('date').agg({
-            'TMAX_F': 'mean',
-            'TMIN_F': 'mean',
-            'energy_mwh': 'sum'
-        }).reset_index()
-    else:
-        plot_df = df[df['city'] == selected_city].copy()
+    st.header("Time Series Analysis")
+    if df.empty:
+        st.info("Select one or more cities to see the time series analysis.")
+        return
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-    # Add the lower bound of the temperature range (TMIN_F)
-    # This trace is made invisible in the legend and has a transparent line.
-    fig.add_trace(
-        go.Scatter(x=plot_df['date'], y=plot_df['TMIN_F'], mode='lines', line=dict(width=0), showlegend=False),
-        secondary_y=False
-    )
+    if selected_city == 'All Cities':
+        title = "Temperature and Energy Demand Comparison"
+        # Plot temperature for each city on the primary axis
+        for city_name in df['city'].unique():
+            city_df = df[df['city'] == city_name]
+            fig.add_trace(
+                go.Scatter(x=city_df['date'], y=city_df[temp_col], name=f"{city_name} ({temp_label.split(' ')[0]})", mode='lines'),
+                secondary_y=False,
+            )
+        
+        # Plot total aggregated energy on the secondary axis
+        total_energy_df = df.groupby('date')['energy_mwh'].sum().reset_index()
+        fig.add_trace(
+            go.Scatter(x=total_energy_df['date'], y=total_energy_df['energy_mwh'], name='Total Energy (MWh)', line=dict(color='rgba(135, 206, 250, 0.6)', dash='dot', width=3)),
+            secondary_y=True,
+        )
+    else:
+        title = f"Temperature and Energy Demand for {selected_city}"
+        plot_df = df.copy()
+        # Add the selected temperature trace for the single city
+        fig.add_trace(
+            go.Scatter(
+                x=plot_df['date'], y=plot_df[temp_col], name=temp_label,
+                mode='lines', line=dict(color='rgba(255, 165, 0, 0.8)')
+            ),
+            secondary_y=False
+        )
+        # Add the energy demand trace for the single city
+        fig.add_trace(
+            go.Scatter(x=plot_df['date'], y=plot_df['energy_mwh'], name='Energy (MWh)', line=dict(color='skyblue', dash='dot')),
+            secondary_y=True
+        )
 
-    # Add the upper bound (TMAX_F) and fill the area down to the previous trace (TMIN_F)
-    fig.add_trace(
-        go.Scatter(
-            x=plot_df['date'], y=plot_df['TMAX_F'], name='Temperature Range (°F)',
-            fill='tonexty', fillcolor='rgba(255, 165, 0, 0.2)', # Fill area to the 'next y' trace
-            mode='lines', line=dict(color='rgba(255, 165, 0, 0.5)')
-        ),
-        secondary_y=False
-    )
-
-    # Add the energy demand trace on the secondary y-axis
-    fig.add_trace(
-        go.Scatter(x=plot_df['date'], y=plot_df['energy_mwh'], name='Energy (MWh)', line=dict(color='skyblue', dash='dot')),
-        secondary_y=True
-    )
-
-    fig.update_layout(title_text=f"Temperature and Energy Demand for {selected_city}", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-    fig.update_yaxes(title_text="Temperature (°F)", secondary_y=False)
+    fig.update_layout(title_text=title, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    fig.update_yaxes(title_text=temp_label, secondary_y=False)
     fig.update_yaxes(title_text="Energy Demand (MWh)", secondary_y=True)
     st.plotly_chart(fig, use_container_width=True)
 
 def display_correlation_analysis(df, temp_col, temp_label):
     """Displays a scatter plot to show correlation between temp and energy."""
-    st.header(f"Correlation Analysis: {temp_label} vs. Energy")
+    st.header("Correlation Analysis")
+    if df.empty:
+        st.info("Select one or more cities to see the correlation analysis.")
+        return
     
     # Calculate overall correlation
     correlation = df[temp_col].corr(df['energy_mwh'])
@@ -236,7 +259,7 @@ def display_correlation_analysis(df, temp_col, temp_label):
             x=temp_col,
             y="energy_mwh",
             color="city",
-            trendline="ols", # Add Ordinary Least Squares regression line
+            trendline="ols",
             title="Temperature vs. Energy Consumption"
         )
         fig.update_layout(xaxis_title=temp_label, yaxis_title="Energy Demand (MWh)")
@@ -253,18 +276,18 @@ def display_correlation_analysis(df, temp_col, temp_label):
         This value measures the strength and direction of the linear relationship between the selected temperature metric and energy demand.
         """)
 
-def display_usage_patterns_heatmap(df, temp_col, temp_label):
+def display_usage_patterns_heatmap(df, temp_col, temp_label, selected_city):
     """Displays a heatmap of average energy usage by day of week and temperature."""
     st.header("Usage Patterns Heatmap")
-    st.write(f"Analyze the average energy demand based on the day of the week and the selected temperature metric ({temp_label}).")
-
-    city_list = ['All Cities'] + sorted(df['city'].unique())
-    selected_city = st.selectbox("Select a City to Analyze", city_list, key="heatmap_city")
+    if df.empty:
+        st.info("Select one or more cities to see the usage patterns heatmap.")
+        return
 
     if selected_city == 'All Cities':
-        plot_df = df.copy()
+        title = "Average Daily Energy Demand for All Cities (Aggregated)"
     else:
-        plot_df = df[df['city'] == selected_city].copy()
+        title = f"Average Daily Energy Demand for {selected_city}"
+    plot_df = df.copy()
 
     # Feature Engineering: Create day of week and temperature bins
     plot_df['day_of_week'] = plot_df['date'].dt.day_name()
@@ -292,7 +315,7 @@ def display_usage_patterns_heatmap(df, temp_col, temp_label):
         text_auto=True, # Automatically display the values on the heatmap
         aspect="auto",
         labels=dict(x="Day of Week", y="Temperature Range", color="Avg. Energy (MWh)"),
-        title=f"Average Daily Energy Demand for {selected_city}"
+        title=title
     )
     st.plotly_chart(fig, use_container_width=True)
 
