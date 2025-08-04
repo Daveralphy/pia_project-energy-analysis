@@ -21,6 +21,3 @@ requires-python = ">=3.9"
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
-
-[tool.uv]
-python = "3.11"
