@@ -1,8 +1,0 @@
-pandas
-plotly
-python-dotenv
-PyYAML
-requests
-scipy
-streamlit
-tenacity
