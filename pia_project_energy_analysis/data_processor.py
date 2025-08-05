@@ -201,11 +201,21 @@ def combine_processed_data(processed_dir, output_dir, configured_cities):
     """
     print("\n--- Combining All Processed Data ---")
     master_file_path = os.path.join(output_dir, 'master_energy_weather_data.csv')
+    configured_city_names = {city['name'] for city in configured_cities}
 
     # 1. Load existing master data if it exists
     if os.path.exists(master_file_path):
         print(f"Existing master file found at {master_file_path}.")
         master_df = pd.read_csv(master_file_path)
+
+        # Filter the loaded master data to only include cities that are currently configured.
+        # This removes data for any cities that have been deleted from config.yaml.
+        cities_before_filter = set(master_df['city'].unique())
+        master_df = master_df[master_df['city'].isin(configured_city_names)]
+        cities_after_filter = set(master_df['city'].unique())
+        removed_cities = cities_before_filter - cities_after_filter
+        if removed_cities:
+            print(f"Removing stale city data from master file: {', '.join(removed_cities)}")
     else:
         print("No existing master file found. Starting fresh.")
         master_df = pd.DataFrame()
@@ -225,7 +235,6 @@ def combine_processed_data(processed_dir, output_dir, configured_cities):
         print("No new data was processed in this run.")
 
     # 4. Ensure all configured cities are present in the final dataframe
-    configured_city_names = {city['name'] for city in configured_cities}
     cities_in_master = set(master_df['city'].unique()) if 'city' in master_df.columns else set()
     
     missing_cities = configured_city_names - cities_in_master
