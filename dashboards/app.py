@@ -46,11 +46,49 @@ def load_data():
         st.warning(f"Could not load city coordinates from config file: {e}")
         return df # Return dataframe without coordinates
 
+def convert_df_to_csv(df):
+    """Converts a DataFrame to a CSV string for download."""
+    # IMPORTANT: Cache the conversion to prevent computation on every rerun
+    # In a more complex app, you might use @st.cache_data here.
+    return df.to_csv(index=False).encode('utf-8')
+
+def apply_compact_style():
+    """Applies custom CSS to make the dashboard more compact."""
+    st.markdown("""
+        <style>
+            /* Reduce padding of the main page to make it more compact */
+            .block-container {
+                padding-top: 1rem;
+                padding-bottom: 0rem;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            /* Reduce padding in the sidebar */
+            [data-testid="stSidebar"] > div:first-child {
+                padding-top: 1.5rem;
+            }
+            /* Reduce the gap between streamlit elements */
+            [data-testid="stVerticalBlock"] > [style*="gap"] {
+                gap: 0.1rem; /* Drastically reduce vertical spacing */
+            }
+            /* Increase font size for tab labels */
+            button[data-testid="stTab"] {
+                font-size: 1.2rem; /* Increased font size for tabs */
+                font-weight: 600;
+            }
+            /* Reduce font size for titles and headers */
+            h1 { font-size: 2.2rem !important; margin-bottom: 0rem !important; }
+            h2 { font-size: 1.6rem !important; }
+            h3 { font-size: 1.3rem !important; }
+        </style>
+    """, unsafe_allow_html=True)
+
 def main():
     """Main function to run the Streamlit dashboard."""
     st.set_page_config(page_title="Energy & Weather Analysis", layout="wide")
+    apply_compact_style()
     
-    df = load_data()
+    master_df = load_data()
 
     # --- Sidebar for Global Controls ---
     with st.sidebar:
@@ -63,9 +101,9 @@ def main():
         )
 
         # Add date input dropdowns for start and end dates
-        if not df.empty:
-            min_date = df['date'].min().date()
-            max_date = df['date'].max().date()
+        if not master_df.empty:
+            min_date = master_df['date'].min().date()
+            max_date = master_df['date'].max().date()
 
             col1, col2 = st.columns(2)
             with col1:
@@ -82,48 +120,105 @@ def main():
             st.warning("No data loaded to select a date range.")
             st.stop()
 
-        city_list = ['All Cities'] + sorted(df['city'].unique())
+        city_list = ['All Cities'] + sorted(master_df['city'].unique())
         selected_city = st.selectbox(
             "Select a City",
             options=city_list,
             key="global_city_filter"
         )
+        
+        # Placeholder for the download button. It will be populated after the data is filtered.
+        download_button_placeholder = st.empty()
 
-    # Filter the main dataframe based on the selected date range from the sidebar
-    # Convert date objects from slider back to datetime for comparison with the dataframe column
+    # --- Data Filtering ---
+    # This section is placed after the sidebar to ensure all filter values are available.
+
+    # 1. Filter by date
     start_datetime = pd.to_datetime(start_date)
     end_datetime = pd.to_datetime(end_date)
-    df = df[(df['date'] >= start_datetime) & (df['date'] <= end_datetime)]
+    df_date_filtered = master_df[(master_df['date'] >= start_datetime) & (master_df['date'] <= end_datetime)].copy()
 
-    # Create a dynamic column for analysis based on user selection
+    # 2. Create the temperature column for analysis
     if temp_metric == 'Max Temperature (TMAX)':
-        df['temp_for_analysis'] = df['TMAX_F']
+        df_date_filtered['temp_for_analysis'] = df_date_filtered['TMAX_F']
         temp_axis_label = "Max Temperature (°F)"
     elif temp_metric == 'Min Temperature (TMIN)':
-        df['temp_for_analysis'] = df['TMIN_F']
+        df_date_filtered['temp_for_analysis'] = df_date_filtered['TMIN_F']
         temp_axis_label = "Min Temperature (°F)"
     else:  # Average Temperature
-        df['temp_for_analysis'] = (df['TMAX_F'] + df['TMIN_F']) / 2
+        df_date_filtered['temp_for_analysis'] = (df_date_filtered['TMAX_F'] + df_date_filtered['TMIN_F']) / 2
         temp_axis_label = "Average Temperature (°F)"
     
-    # Drop rows where the analysis temp is NaN to avoid issues in plots
-    df.dropna(subset=['temp_for_analysis'], inplace=True)
+    # 3. Drop rows where the analysis temp is NaN to avoid issues in plots
+    df_date_filtered.dropna(subset=['temp_for_analysis'], inplace=True)
 
-    # Filter data based on the global multi-select city filter
+    # 4. Filter by city to create the final dataframe for display in most charts
     if selected_city == 'All Cities':
-        display_df = df.copy()
+        display_df = df_date_filtered.copy()
     else:
-        display_df = df[df['city'] == selected_city].copy()
+        display_df = df_date_filtered[df_date_filtered['city'] == selected_city].copy()
+
+    # --- Add Download Button to Sidebar (now that data is filtered) ---
+    with download_button_placeholder.container():
+        st.markdown("---")
+        st.header("Export Data")
+        
+        csv = convert_df_to_csv(display_df)
+        
+        st.download_button(
+           label="Download Filtered Data",
+           data=csv,
+           file_name=f"filtered_data_{start_date}_to_{end_date}_{selected_city.replace(' ', '_')}.csv",
+           mime="text/csv",
+        )
 
     # --- Main Dashboard Layout ---
     st.title("U.S. Weather and Energy Consumption Analysis")
 
+    # --- KPI Metrics Section ---
+
+    if not display_df.empty:
+        # Calculate metrics
+        num_cities = display_df['city'].nunique()
+        
+        # Duration
+        duration_days = (end_date - start_date).days + 1
+        duration_text = f"{duration_days} day" if duration_days == 1 else f"{duration_days} days"
+
+        # Average Temp
+        avg_temp = display_df['temp_for_analysis'].mean()
+        if temp_metric == 'Average Temperature':
+            avg_temp_label = "Avg. Temperature"
+        else:
+            avg_temp_label = f"Avg. {temp_metric.split(' ')[0]} Temp."
+        
+        # Average Energy
+        avg_energy = display_df['energy_mwh'].mean()
+
+        # Location
+        if selected_city == 'All Cities':
+            location_label = "Locations Analyzed"
+            location_value = f"{num_cities} Cities"
+        else:
+            location_label = "Location Analyzed"
+            location_value = selected_city
+
+        # Display metrics in columns
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric(label=location_label, value=location_value)
+        col2.metric(label="Analysis Duration", value=duration_text)
+        col3.metric(label=avg_temp_label, value=f"{avg_temp:.1f} °F" if pd.notna(avg_temp) else "N/A")
+        col4.metric(label="Avg. Daily Energy", value=f"{avg_energy:,.0f} MWh" if pd.notna(avg_energy) else "N/A")
+    else:
+        st.warning("No data available for the selected filters to display key metrics.")
+    
     # Create tabs for different analysis views
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["📍 Geographic Overview", "📈 Time Series Analysis", "🔗 Correlation Analysis", "🗓️ Usage Patterns", "⚠️ Data Quality Report"])
 
     with tab1:
-        # Pass the original, unfiltered dataframe `df` to the map to ensure consistent scaling
-        display_geographic_overview(df, 'temp_for_analysis', temp_axis_label, selected_city)
+        # Pass the date-filtered dataframe to the map to ensure all cities are available for scaling,
+        # while respecting the date filter. The function itself will handle showing only the selected city.
+        display_geographic_overview(df_date_filtered, 'temp_for_analysis', temp_axis_label, selected_city)
     
     with tab2:
         display_time_series(display_df, 'temp_for_analysis', temp_axis_label, selected_city)
@@ -236,7 +331,11 @@ def display_time_series(df, temp_col, temp_label, selected_city):
             secondary_y=True
         )
 
-    fig.update_layout(title_text=title, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    fig.update_layout(
+        title_text=title,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(l=40, r=40, t=50, b=40) # Add compact margins
+    )
     fig.update_yaxes(title_text=temp_label, secondary_y=False)
     fig.update_yaxes(title_text="Energy Demand (MWh)", secondary_y=True)
     st.plotly_chart(fig, use_container_width=True)
@@ -262,7 +361,11 @@ def display_correlation_analysis(df, temp_col, temp_label):
             trendline="ols",
             title="Temperature vs. Energy Consumption"
         )
-        fig.update_layout(xaxis_title=temp_label, yaxis_title="Energy Demand (MWh)")
+        fig.update_layout(
+            xaxis_title=temp_label,
+            yaxis_title="Energy Demand (MWh)",
+            margin=dict(l=40, r=10, t=40, b=40) # Add compact margins
+        )
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -317,6 +420,7 @@ def display_usage_patterns_heatmap(df, temp_col, temp_label, selected_city):
         labels=dict(x="Day of Week", y="Temperature Range", color="Avg. Energy (MWh)"),
         title=title
     )
+    fig.update_layout(margin=dict(t=50, b=0, l=0, r=0)) # Add top margin for title
     st.plotly_chart(fig, use_container_width=True)
 
 def display_data_quality_report():
