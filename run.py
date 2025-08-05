@@ -9,8 +9,13 @@ def run_pipeline():
     """
     print("--- 🚀 Starting Data Pipeline ---")
     try:
+        # Explicitly add the project root to the Python path.
+        # This makes the script runnable from anywhere and resolves import issues.
+        project_root = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, project_root)
+
         # Import the main function from the pipeline script
-        from src.pipeline import main as run_pipeline_main
+        from pia_project_energy_analysis.pipeline import main as run_pipeline_main
         run_pipeline_main()
         print("--- ✅ Data Pipeline Finished Successfully ---")
         return True

@@ -54,6 +54,36 @@ cities:
     eia_ba_code: "ISNE" # ISO New England
     latitude: 42.3601
     longitude: -71.0589
+  - name: "Atlanta"
+    state: "Georgia"
+    noaa_station_id: "GHCND:USW00013874" # Hartsfield-Jackson Atlanta Int'l Airport
+    eia_ba_code: "SOCO" # Southern Company
+    latitude: 33.7490
+    longitude: -84.3880
+  - name: "Dallas"
+    state: "Texas"
+    noaa_station_id: "GHCND:USW00003927" # Dallas/Fort Worth Int'l Airport
+    eia_ba_code: "ERCO" # ERCOT
+    latitude: 32.7767
+    longitude: -96.7970
+  - name: "Philadelphia"
+    state: "Pennsylvania"
+    noaa_station_id: "GHCND:USW00013739" # Philadelphia Int'l Airport
+    eia_ba_code: "PJM" # PJM Interconnection
+    latitude: 39.9526
+    longitude: -75.1652
+  - name: "San Francisco"
+    state: "California"
+    noaa_station_id: "GHCND:USW00023234" # San Francisco Int'l Airport
+    eia_ba_code: "CISO" # California Independent System Operator
+    latitude: 37.7749
+    longitude: -122.4194
+  - name: "Washington D.C."
+    state: "District of Columbia"
+    noaa_station_id: "GHCND:USW00013743" # Reagan National Airport
+    eia_ba_code: "PJM" # PJM Interconnection
+    latitude: 38.9072
+    longitude: -77.0369
 
 api_endpoints:
   noaa_base_url: "https://www.ncei.noaa.gov/cdo-web/api/v2/"

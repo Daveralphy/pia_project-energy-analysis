@@ -6,7 +6,11 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import os
 import yaml
+import subprocess
+import sys
+import time
 
+@st.cache_data
 def load_data():
     """Loads the master data file from the output directory."""
     # Construct the path relative to the script's location
@@ -88,6 +92,37 @@ def apply_compact_style():
         </style>
     """, unsafe_allow_html=True)
 
+def run_pipeline_from_dashboard():
+    """Executes the main data pipeline and streams its output to the dashboard."""
+    log_area = st.empty()
+    log_content = "--- 🚀 Starting Data Pipeline ---\n"
+    log_area.code(log_content, language='log')
+
+    # Construct the path to run.py and the project root
+    project_root = os.path.join(os.path.dirname(__file__), '..')
+    run_script_path = os.path.join(project_root, 'run.py')
+
+    # Use Popen to capture output in real-time
+    # We run the script from the project_root directory to ensure all paths inside it resolve correctly
+    process = subprocess.Popen(
+        [sys.executable, run_script_path],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        cwd=project_root,
+        encoding='utf-8',
+        errors='replace'
+    )
+
+    # Read and display output line by line
+    for line in iter(process.stdout.readline, ''):
+        log_content += line
+        log_area.code(log_content, language='log')
+    
+    process.stdout.close()
+    process.wait()
+    log_area.code(log_content, language='log') # Display final content
+
 def main():
     """Main function to run the Streamlit dashboard."""
     st.set_page_config(page_title="Energy & Weather Analysis", layout="wide")
@@ -134,6 +169,17 @@ def main():
         
         # Placeholder for the download button. It will be populated after the data is filtered.
         download_button_placeholder = st.empty()
+
+        # --- Data Management Section ---
+        with st.expander("Data Management", expanded=False):
+            st.info("This will re-run the entire data pipeline to fetch the latest data for all configured cities. This may take several minutes.")
+            if st.button("🔄 Refresh All Data"):
+                with st.spinner("Pipeline is running... see logs below."):
+                    run_pipeline_from_dashboard()
+                st.success("✅ Pipeline finished! Reloading dashboard with new data...")
+                st.cache_data.clear() # Clear the data cache to force reload
+                time.sleep(3)
+                st.rerun()
 
     # --- Data Filtering ---
     # This section is placed after the sidebar to ensure all filter values are available.
