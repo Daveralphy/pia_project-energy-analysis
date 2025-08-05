@@ -9,6 +9,12 @@ import yaml
 import subprocess
 import sys
 import time
+# Import new helpers for the configuration page
+from .station_finder import find_noaa_stations, STATE_FIPS
+# Import from the project's source code
+project_root_for_imports = os.path.join(os.path.dirname(__file__), '..')
+sys.path.insert(0, project_root_for_imports)
+from pia_project_energy_analysis.config_loader import load_configuration
 
 @st.cache_data
 def load_data():
@@ -122,6 +128,82 @@ def run_pipeline_from_dashboard():
     process.stdout.close()
     process.wait()
     log_area.code(log_content, language='log') # Display final content
+
+def save_configuration(new_cities_df):
+    """Reads the existing config, replaces the cities list, and writes it back."""
+    project_root = os.path.join(os.path.dirname(__file__), '..')
+    config_path = os.path.join(project_root, 'config', 'config.yaml')
+
+    try:
+        with open(config_path, 'r') as f:
+            full_config = yaml.safe_load(f)
+
+        # Convert dataframe back to list of dicts, dropping empty rows and NaN values
+        new_cities_list = new_cities_df.dropna(how='all').to_dict('records')
+        # Ensure lat/lon are floats, not strings
+        for city in new_cities_list:
+            if 'latitude' in city:
+                city['latitude'] = float(city['latitude'])
+            if 'longitude' in city:
+                city['longitude'] = float(city['longitude'])
+        
+        # Replace the cities list in the config
+        full_config['cities'] = new_cities_list
+
+        with open(config_path, 'w') as f:
+            yaml.dump(full_config, f, default_flow_style=False, sort_keys=False, indent=2)
+        
+        return True
+    except Exception as e:
+        st.error(f"Failed to save configuration: {e}")
+        return False
+
+def display_config_management_page():
+    """Renders the configuration management UI in a dedicated tab."""
+    st.header("Configuration & Data Management")
+    st.write("Here you can manage the list of cities for analysis and find the necessary IDs.")
+
+    # --- Section 1: Find IDs ---
+    with st.expander("🔎 Find City IDs"):
+        st.subheader("Find NOAA Weather Station ID")
+        st.info("Select a state to find the `noaa_station_id` for a city. Look for major airport stations (e.g., 'INTL AP') for the most reliable data.")
+        
+        # We need the NOAA token to use the finder
+        _, noaa_token, _ = load_configuration()
+
+        selected_state = st.selectbox("Select a U.S. State", options=sorted(STATE_FIPS.keys()))
+        if st.button("Find NOAA Stations"):
+            find_noaa_stations(selected_state, noaa_token)
+
+        st.subheader("Find EIA Balancing Authority Code")
+        st.info("The `eia_ba_code` identifies the regional power grid operator. Finding the correct code is best done manually.")
+        st.markdown("Click here to look up EIA Balancing Authorities", unsafe_allow_html=True)
+
+    # --- Section 2: Manage Cities ---
+    st.subheader("Manage Monitored Cities")
+    config, _, _ = load_configuration()
+    if not config:
+        st.error("Could not load config.yaml. Cannot display city management tool.")
+        return
+
+    cities_df = pd.DataFrame(config.get('cities', []))
+    
+    edited_df = st.data_editor(
+        cities_df,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="city_editor"
+    )
+
+    if st.button("💾 Save Changes & Refresh All Data"):
+        if save_configuration(edited_df):
+            st.success("Configuration saved successfully! Now running the data pipeline...")
+            with st.spinner("Pipeline is running... see logs below."):
+                run_pipeline_from_dashboard()
+            st.success("Pipeline finished! Reloading dashboard with new data...")
+            st.cache_data.clear()
+            time.sleep(3)
+            st.rerun()
 
 def main():
     """Main function to run the Streamlit dashboard."""
@@ -262,7 +344,7 @@ def main():
         st.warning("No data available for the selected filters to display key metrics.")
     
     # Create tabs for different analysis views
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📍 Geographic Overview", "📈 Time Series Analysis", "🔗 Correlation Analysis", "🗓️ Usage Patterns", "⚠️ Data Quality Report"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📍 Geographic Overview", "📈 Time Series Analysis", "🔗 Correlation Analysis", "🗓️ Usage Patterns", "⚠️ Data Quality Report", "⚙️ Configuration"])
 
     with tab1:
         # Pass the date-filtered dataframe to the map to ensure all cities are available for scaling,
@@ -280,6 +362,9 @@ def main():
 
     with tab5:
         display_data_quality_report()
+    
+    with tab6:
+        display_config_management_page()
 
 def display_geographic_overview(df, temp_col, temp_label, selected_city):
     """Displays an interactive map of the latest data for each city."""
