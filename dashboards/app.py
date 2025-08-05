@@ -182,18 +182,18 @@ def apply_compact_style():
         <style>
             /* Reduce padding of the main page to make it more compact */
             .block-container {
-                padding-top: 1rem;
+                padding-top: 0.5rem;
                 padding-bottom: 0rem;
-                padding-left: 1rem;
-                padding-right: 1rem;
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
             }
             /* Reduce padding in the sidebar */
             [data-testid="stSidebar"] > div:first-child {
-                padding-top: 0.5rem;
+                padding-top: 0.1rem;
             }
             /* Reduce the gap between streamlit elements */
             [data-testid="stVerticalBlock"] > [style*="gap"] {
-                gap: 0.1rem; /* Drastically reduce vertical spacing */
+                gap: 0.05rem; /* Further reduce vertical spacing */
             }
             /* Increase font size for tab labels */
             button[data-testid="stTab"] {
