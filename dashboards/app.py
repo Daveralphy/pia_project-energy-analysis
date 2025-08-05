@@ -129,7 +129,7 @@ def run_pipeline_from_dashboard():
     process.wait()
     log_area.code(log_content, language='log') # Display final content
 
-def save_configuration(new_cities_df):
+def save_configuration(new_cities_list):
     """Reads the existing config, replaces the cities list, and writes it back."""
     project_root = os.path.join(os.path.dirname(__file__), '..')
     config_path = os.path.join(project_root, 'config', 'config.yaml')
@@ -138,15 +138,18 @@ def save_configuration(new_cities_df):
         with open(config_path, 'r') as f:
             full_config = yaml.safe_load(f)
 
-        # Convert dataframe back to list of dicts, dropping empty rows and NaN values
-        new_cities_list = new_cities_df.dropna(how='all').to_dict('records')
-        # Ensure lat/lon are floats, not strings
+        # Validate and sanitize the list of cities from the user input
+        if not isinstance(new_cities_list, list):
+            st.error("Configuration must be a list of cities in valid YAML format.")
+            return False
+
         for city in new_cities_list:
-            if 'latitude' in city:
+            # Ensure latitude and longitude are correctly typed as floats
+            if 'latitude' in city and city['latitude'] is not None:
                 city['latitude'] = float(city['latitude'])
-            if 'longitude' in city:
+            if 'longitude' in city and city['longitude'] is not None:
                 city['longitude'] = float(city['longitude'])
-        
+
         # Replace the cities list in the config
         full_config['cities'] = new_cities_list
 
@@ -154,6 +157,9 @@ def save_configuration(new_cities_df):
             yaml.dump(full_config, f, default_flow_style=False, sort_keys=False, indent=2)
         
         return True
+    except (ValueError, TypeError) as e:
+        st.error(f"Invalid value for latitude/longitude. Please ensure they are numbers. Error: {e}")
+        return False
     except Exception as e:
         st.error(f"Failed to save configuration: {e}")
         return False
@@ -241,22 +247,34 @@ def main():
 
             # --- Section 2: Manage Cities ---
             st.subheader("Manage Monitored Cities")
+            st.info("Edit the city configurations below in YAML format. You can add, remove, or modify cities.")
             config, _, _ = load_configuration()
             if config:
-                cities_df = pd.DataFrame(config.get('cities', []))
-                edited_df = st.data_editor(
-                    cities_df, num_rows="dynamic", use_container_width=True, key="modal_city_editor"
+                # Get the current list of cities and convert to a YAML string for display
+                current_cities_list = config.get('cities', [])
+                cities_yaml_string = yaml.dump(current_cities_list, default_flow_style=False, sort_keys=False, indent=2)
+
+                edited_yaml = st.text_area(
+                    "City Configuration (YAML)",
+                    value=cities_yaml_string,
+                    height=400,
+                    key="city_yaml_editor"
                 )
 
                 if st.button("💾 Save Changes & Refresh All Data", key="modal_save_refresh"):
-                    if save_configuration(edited_df):
-                        st.success("Configuration saved successfully! Now running the data pipeline...")
-                        with st.spinner("Pipeline is running... see logs below."):
-                            run_pipeline_from_dashboard()
-                        st.success("Pipeline finished! Reloading dashboard with new data...")
-                        st.cache_data.clear()
-                        time.sleep(3)
-                        st.rerun()
+                    try:
+                        # Parse the user's edited YAML string
+                        new_cities_list = yaml.safe_load(edited_yaml)
+                        if save_configuration(new_cities_list):
+                            st.success("Configuration saved successfully! Now running the data pipeline...")
+                            with st.spinner("Pipeline is running... see logs below."):
+                                run_pipeline_from_dashboard()
+                            st.success("Pipeline finished! Reloading dashboard with new data...")
+                            st.cache_data.clear()
+                            time.sleep(3)
+                            st.rerun()
+                    except yaml.YAMLError as e:
+                        st.error(f"Error parsing YAML. Please check your formatting.\nDetails: {e}")
             else:
                 st.error("Could not load config.yaml. Cannot display city management tool.")
 
