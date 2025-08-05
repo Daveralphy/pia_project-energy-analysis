@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 from tenacity import retry, stop_after_attempt, wait_exponential
-from .eia_region_mapper import EiaRegionMapper
+from dashboards.eia_region_mapper import EiaRegionMapper
 
 # A mapping of US states to their FIPS codes, used for API filtering.
 STATE_FIPS = {
