@@ -107,6 +107,23 @@ def _setup_pipeline_parameters(config, args):
         "start_date": start_date_str, "end_date": end_date_str
     }
 
+def _clear_intermediate_data(raw_dir, processed_dir):
+    """
+    Clears out the raw and processed data directories to ensure a clean pipeline run.
+    This prevents stale data from a previous run from contaminating the current one.
+    """
+    print("\n--- Clearing Intermediate Data Directories for a Clean Run ---")
+    for directory in [raw_dir, processed_dir]:
+        if os.path.exists(directory):
+            print(f"Clearing contents of {directory}...")
+            for filename in os.listdir(directory):
+                file_path = os.path.join(directory, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                except Exception as e:
+                    print(f"Failed to delete {file_path}. Reason: {e}")
+
 def main(args):
     """
     Main function to orchestrate the data fetching process.
@@ -131,6 +148,9 @@ def main(args):
     params = _setup_pipeline_parameters(config, args)
     if not params:
         return
+
+    # Clear intermediate directories for a clean run
+    _clear_intermediate_data(params["full_raw_data_path"], params["full_processed_data_path"])
 
     # Initialize a list to hold all data quality warnings
     all_warnings = []
