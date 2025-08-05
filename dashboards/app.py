@@ -306,10 +306,96 @@ def main():
 
         # Popover for editing the city configuration
         with st.popover("⚙️ Edit Configuration", use_container_width=True):
-            # The content of the popover remains the same, just its position in the code is moved.
             st.header("Configuration & Data Management")
             st.write("Here you can manage the list of cities for analysis and find the necessary IDs.")
-            # ... (popover content is extensive and unchanged) ...
+
+            # --- Section 1: Find IDs ---
+            with st.expander("🔎 Find City IDs"):
+                st.subheader("Find Required IDs for a City")
+                st.info("To add a new city, you need its **NOAA Station ID** and its **EIA Balancing Authority Code**. Use this tool to find them.")
+
+                selected_state = st.selectbox("Select a U.S. State to find its stations and energy regions:", options=sorted(STATE_FIPS.keys()), key="modal_state_select", index=None, placeholder="Choose a state...")
+                
+                if selected_state:
+                    if st.button(f"Find Available IDs for {selected_state}", key="modal_find_stations"):
+                        # Store search results in session state to persist them across reruns
+                        _, noaa_token, _ = load_configuration()
+                        st.session_state.station_results = find_noaa_stations(selected_state, noaa_token)
+
+                # If search results exist in the session state, display the interactive editor
+                if 'station_results' in st.session_state and st.session_state.station_results is not None:
+                    st.markdown("---")
+                    st.markdown("##### Step 2: Select Stations to Add")
+                    st.info("Check the 'Add' box for stations you want to include. You can edit the city name for clarity.")
+                    
+                    results_df = st.session_state.station_results.copy()
+                    mapper = CityToBaMapper()
+                    
+                    # Automatically find the BA code and add it to the dataframe
+                    mapping_results = results_df.apply(lambda row: mapper.find_ba_for_station(row['name'], selected_state), axis=1)
+                    results_df[['eia_ba_code', 'match_type']] = pd.DataFrame(mapping_results.tolist(), index=results_df.index)
+                    
+                    # Add the 'Add' column for user selection
+                    results_df.insert(0, 'Add', False)
+
+                    # Display the interactive data editor
+                    edited_stations_df = st.data_editor(
+                        results_df[['Add', 'name', 'noaa_station_id', 'eia_ba_code', 'latitude', 'longitude']],
+                        column_config={"name": st.column_config.TextColumn("City Name (Editable)")},
+                        use_container_width=True,
+                        key="station_selector_editor"
+                    )
+
+                    if st.button("Add Selected to Configuration"):
+                        selected_rows = edited_stations_df[edited_stations_df['Add']]
+                        if not selected_rows.empty:
+                            # Prepare the selected data for YAML conversion
+                            rows_to_add = selected_rows.drop(columns=['Add']).to_dict('records')
+                            for row in rows_to_add:
+                                row['state'] = selected_state
+                            
+                            # Append to the current YAML in the text area
+                            current_yaml_list = yaml.safe_load(st.session_state.get('cities_yaml_string', '[]')) or []
+                            current_yaml_list.extend(rows_to_add)
+                            st.session_state.cities_yaml_string = yaml.dump(current_yaml_list, default_flow_style=False, sort_keys=False, indent=2)
+                            
+                            # Clear the search results and rerun to update the UI
+                            del st.session_state.station_results
+                            st.rerun()
+
+            # --- Section 2: Manage Cities ---
+            st.subheader("Manage Monitored Cities")
+            st.info("Edit the city configurations below in YAML format. You can add, remove, or modify cities.")
+            config, _, _ = load_configuration()
+            if config:
+                # Initialize session state for the YAML editor if it doesn't exist
+                if 'cities_yaml_string' not in st.session_state:
+                    current_cities_list = config.get('cities', [])
+                    st.session_state.cities_yaml_string = yaml.dump(current_cities_list, default_flow_style=False, sort_keys=False, indent=2)
+
+                edited_yaml = st.text_area(
+                    "City Configuration (YAML)",
+                    value=st.session_state.cities_yaml_string,
+                    height=400,
+                    key="city_yaml_editor"
+                )
+
+                if st.button("💾 Save Changes & Refresh All Data", key="modal_save_refresh"):
+                    try:
+                        # Parse the user's edited YAML string
+                        new_cities_list = yaml.safe_load(edited_yaml)
+                        if save_configuration(new_cities_list):
+                            st.success("Configuration saved successfully! Now running the data pipeline...")
+                            with st.spinner("Pipeline is running... see logs below."):
+                                run_pipeline_from_dashboard()
+                            st.success("Pipeline finished! Reloading dashboard with new data...")
+                            st.cache_data.clear()
+                            time.sleep(3)
+                            st.rerun()
+                    except yaml.YAMLError as e:
+                        st.error(f"Error parsing YAML. Please check your formatting.\nDetails: {e}")
+            else:
+                st.error("Could not load config.yaml. Cannot display city management tool.")
 
         # --- Analysis Options Section ---
         st.markdown("---")
