@@ -80,6 +80,11 @@ def apply_compact_style():
             h1 { font-size: 2.2rem !important; margin-bottom: 0rem !important; }
             h2 { font-size: 1.6rem !important; }
             h3 { font-size: 1.3rem !important; }
+            /* Standardize font size for KPI Metric Labels for consistency */
+            [data-testid="stMetricLabel"] {
+                font-size: 1rem !important;
+                font-weight: 600 !important;
+            }
         </style>
     """, unsafe_allow_html=True)
 
@@ -180,18 +185,15 @@ def main():
     if not display_df.empty:
         # Calculate metrics
         num_cities = display_df['city'].nunique()
-        
+
         # Duration
         duration_days = (end_date - start_date).days + 1
         duration_text = f"{duration_days} day" if duration_days == 1 else f"{duration_days} days"
 
-        # Average Temp
-        avg_temp = display_df['temp_for_analysis'].mean()
-        if temp_metric == 'Average Temperature':
-            avg_temp_label = "Avg. Temperature"
-        else:
-            avg_temp_label = f"Avg. {temp_metric.split(' ')[0]} Temp."
-        
+        # Calculate static Avg Max and Avg Min Temp, regardless of radio button selection
+        avg_max_temp = display_df['TMAX_F'].mean()
+        avg_min_temp = display_df['TMIN_F'].mean()
+
         # Average Energy
         avg_energy = display_df['energy_mwh'].mean()
 
@@ -203,12 +205,13 @@ def main():
             location_label = "Location Analyzed"
             location_value = selected_city
 
-        # Display metrics in columns
-        col1, col2, col3, col4 = st.columns(4)
+        # Display metrics in 5 columns
+        col1, col2, col3, col4, col5 = st.columns(5)
         col1.metric(label=location_label, value=location_value)
         col2.metric(label="Analysis Duration", value=duration_text)
-        col3.metric(label=avg_temp_label, value=f"{avg_temp:.1f} °F" if pd.notna(avg_temp) else "N/A")
-        col4.metric(label="Avg. Daily Energy", value=f"{avg_energy:,.0f} MWh" if pd.notna(avg_energy) else "N/A")
+        col3.metric(label="Avg. Max Temp", value=f"{avg_max_temp:.1f} °F" if pd.notna(avg_max_temp) else "N/A")
+        col4.metric(label="Avg. Min Temp", value=f"{avg_min_temp:.1f} °F" if pd.notna(avg_min_temp) else "N/A")
+        col5.metric(label="Avg. Daily Energy", value=f"{avg_energy:,.0f} MWh" if pd.notna(avg_energy) else "N/A")
     else:
         st.warning("No data available for the selected filters to display key metrics.")
     
