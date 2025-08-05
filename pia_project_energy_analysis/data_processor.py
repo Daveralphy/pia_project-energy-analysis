@@ -176,37 +176,47 @@ def merge_and_save_data(weather_df, energy_df, city_name, processed_dir):
 
 def combine_processed_data(processed_dir, output_dir):
     """
-    Finds all processed CSV files in a directory, combines them into a single
-    master DataFrame, and saves it to a new CSV file in a specified output directory.
+    Finds all newly processed CSV files, reads the existing master data file (if any),
+    and merges the new data into the master file, overwriting old data with new
+    data for any overlapping city/date combinations.
 
     Args:
         processed_dir (str): The directory containing the processed city CSV files.
         output_dir (str): The directory to save the final master file.
     """
     print("\n--- Combining All Processed Data ---")
-    # Find all individual processed CSV files
-    all_files = [os.path.join(processed_dir, f) for f in os.listdir(processed_dir) if f.endswith('_processed_data.csv')]
+    newly_processed_files = [os.path.join(processed_dir, f) for f in os.listdir(processed_dir) if f.endswith('_processed_data.csv')]
     
-    if not all_files:
-        print("No processed data files found to combine.")
+    if not newly_processed_files:
+        print("No new data was processed in this run. Master file remains unchanged.")
         return
 
-    df_list = []
-    for file in all_files:
+    new_data_list = []
+    for file in newly_processed_files:
         try:
             df = pd.read_csv(file)
-            df_list.append(df)
+            new_data_list.append(df)
         except Exception as e:
             print(f"Could not read or process file {file}: {e}")
 
-    if not df_list:
-        print("No dataframes were created from the files. Aborting combination.")
+    if not new_data_list:
+        print("No new dataframes were created from the processed files. Aborting combination.")
         return
 
-    combined_df = pd.concat(df_list, ignore_index=True)
-    combined_df.sort_values(by=['city', 'date'], inplace=True)
-
+    newly_processed_df = pd.concat(new_data_list, ignore_index=True)
     master_file_path = os.path.join(output_dir, 'master_energy_weather_data.csv')
+
+    if os.path.exists(master_file_path):
+        print(f"Existing master file found at {master_file_path}. Merging new data...")
+        existing_master_df = pd.read_csv(master_file_path)
+        # Combine old and new data, then drop duplicates, keeping the new data for any overlaps
+        combined_df = pd.concat([existing_master_df, newly_processed_df], ignore_index=True)
+        combined_df.drop_duplicates(subset=['city', 'date'], keep='last', inplace=True)
+    else:
+        print("No existing master file found. Creating a new one.")
+        combined_df = newly_processed_df
+
+    combined_df.sort_values(by=['city', 'date'], inplace=True)
     combined_df.to_csv(master_file_path, index=False)
     
-    print(f"Successfully combined {len(df_list)} files into {master_file_path}")
+    print(f"Successfully updated master data file at {master_file_path}")
