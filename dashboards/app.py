@@ -103,24 +103,35 @@ def find_noaa_stations(state_name, noaa_token):
             data = _make_station_request(params, headers)
         results = data.get('results', [])
         if results:
-            df = pd.DataFrame(results)
+            df = pd.DataFrame(results)            
+            # --- NEW, MORE ROBUST FILTERING LOGIC ---
+            # 1. Convert date strings to datetime objects for comparison
+            df['maxdate'] = pd.to_datetime(df['maxdate'])
             
-            # Filter for major stations (typically at airports, ID starts with 'USW')
-            # These are more reliable for TMAX/TMIN data.
-            major_stations_df = df[df['id'].str.startswith('GHCND:USW')].copy()
+            # 2. Filter for stations that have reported data within the last year
+            one_year_ago = pd.to_datetime('today') - pd.DateOffset(years=1)
+            active_stations_df = df[df['maxdate'] >= one_year_ago].copy()
 
-            if not major_stations_df.empty:
-                st.success(f"Found {len(major_stations_df)} major weather stations. These are recommended for analysis.")
-                # Process and return only the major stations
-                major_stations_df = major_stations_df[['id', 'name', 'latitude', 'longitude']]
-                major_stations_df.rename(columns={'id': 'noaa_station_id'}, inplace=True)
-                return major_stations_df
-            else:
-                # If no major stations, warn the user and show all available stations
-                st.warning(f"No major weather stations found for {state_name}. The smaller stations listed below may not have the required temperature data.", icon="⚠️")
-                all_stations_df = df[['id', 'name', 'latitude', 'longitude']]
+            if active_stations_df.empty:
+                st.warning(f"No recently active weather stations found for {state_name}. The pipeline may fail for stations that have not reported data in over a year.", icon="⚠️")
+                # Fallback to showing all stations if none are recently active
+                all_stations_df = df[['id', 'name', 'latitude', 'longitude']].copy()
                 all_stations_df.rename(columns={'id': 'noaa_station_id'}, inplace=True)
                 return all_stations_df
+
+            # 3. From the active stations, prioritize major 'USW' stations
+            major_active_stations_df = active_stations_df[active_stations_df['id'].str.startswith('GHCND:USW')].copy()
+
+            if not major_active_stations_df.empty:
+                st.success(f"Found {len(major_active_stations_df)} major, recently active weather stations. These are highly recommended for analysis.")
+                major_active_stations_df = major_active_stations_df[['id', 'name', 'latitude', 'longitude']]
+                major_active_stations_df.rename(columns={'id': 'noaa_station_id'}, inplace=True)
+                return major_active_stations_df
+            else:
+                st.warning(f"No major weather stations found for {state_name}. The smaller, active stations listed below may not have the required temperature data.", icon="⚠️")
+                active_stations_df = active_stations_df[['id', 'name', 'latitude', 'longitude']]
+                active_stations_df.rename(columns={'id': 'noaa_station_id'}, inplace=True)
+                return active_stations_df
         else:
             st.info(f"No stations found for {state_name}.")
             return None
@@ -355,7 +366,9 @@ def main():
                                     row['state'] = selected_state
                                 
                                 # Append to the current YAML in the text area
-                                current_yaml_list = yaml.safe_load(st.session_state.get('cities_yaml_string', '[]')) or []
+                                # CRITICAL FIX: Read from the text area's current state, not the old session state variable.
+                                current_yaml_text = st.session_state.city_yaml_editor
+                                current_yaml_list = yaml.safe_load(current_yaml_text) or []
                                 current_yaml_list.extend(rows_to_add)
                                 st.session_state.cities_yaml_string = yaml.dump(current_yaml_list, default_flow_style=False, sort_keys=False, indent=2)
                                 
