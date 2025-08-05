@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 from tenacity import retry, stop_after_attempt, wait_exponential
+from dashboards.eia_region_mapper import EiaRegionMapper
 
 # A mapping of US states to their FIPS codes, used for API filtering.
 STATE_FIPS = {
@@ -26,15 +27,14 @@ def _make_station_request(params, headers):
     response.raise_for_status()
     return response.json()
 
-def find_noaa_stations(state_name, noaa_token, eia_ba_code):
+def find_noaa_stations(state_name, noaa_token):
     """
-    Finds NOAA GHCND stations for a given state and displays them in a table
-    that also includes the user-provided EIA Balancing Authority code.
+    Finds NOAA GHCND stations for a given state, automatically determines their
+    EIA Balancing Authority code, and displays them in a unified table.
 
     Args:
         state_name (str): The name of the US state.
         noaa_token (str): The NOAA API token.
-        eia_ba_code (str): The EIA Balancing Authority code provided by the user.
     """
     if not noaa_token:
         st.error("NOAA API token not found. Cannot search for stations. Please check your `.env` file.")
@@ -57,15 +57,23 @@ def find_noaa_stations(state_name, noaa_token, eia_ba_code):
             data = _make_station_request(params, headers)
         results = data.get('results', [])
         if results:
+            mapper = EiaRegionMapper()
+            
             # Select and rename columns for clarity
             df = pd.DataFrame(results)[['id', 'name', 'latitude', 'longitude']]
             df.rename(columns={'id': 'noaa_station_id'}, inplace=True)
             
-            # Add the user-provided EIA code as a new column
-            df['eia_ba_code'] = eia_ba_code
+            # Automatically find the EIA BA code for each station using its coordinates.
+            # This can take a moment, so the spinner is helpful.
+            with st.spinner("Mapping stations to energy regions..."):
+                df['eia_ba_code'] = df.apply(
+                    lambda row: mapper.find_ba_for_location(row['latitude'], row['longitude']),
+                    axis=1
+                )
             
             # Reorder columns for the final display
             display_cols = ['name', 'noaa_station_id', 'eia_ba_code', 'latitude', 'longitude']
+            st.info("The table below shows NOAA stations for the selected state with their automatically-detected EIA region code. Stations with 'N/A' may be outside a defined energy region.")
             st.dataframe(df[display_cols], use_container_width=True)
         else:
             st.info(f"No stations found for {state_name}.")

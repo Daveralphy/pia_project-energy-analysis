@@ -235,23 +235,14 @@ def main():
                 st.subheader("Find Required IDs for a City")
                 st.info("To add a new city, you need its **NOAA Station ID** and its **EIA Balancing Authority Code**. Use this tool to find them.")
 
-                col1, col2 = st.columns(2)
-                with col1:
-                    selected_state = st.selectbox("1. Select a U.S. State", options=sorted(STATE_FIPS.keys()), key="modal_state_select")
-                with col2:
-                    eia_code_input = st.text_input("2. Enter EIA Code for Region", help="Use the link below to find the code for your region (e.g., PJM, CISO, ERCO).")
+                selected_state = st.selectbox("Select a U.S. State to find its stations and energy regions:", options=sorted(STATE_FIPS.keys()), key="modal_state_select", index=None, placeholder="Choose a state...")
                 
-                st.markdown("[Click here to find the EIA Balancing Authority Code on an interactive map.](https://www.eia.gov/electricity/gridmonitor/dashboard/electric_overview/US48/US48)", unsafe_allow_html=True)
-                
-                if st.button("3. Find Matching IDs", key="modal_find_stations"):
-                    _, noaa_token, _ = load_configuration()
-                    if not eia_code_input:
-                        st.warning("Please enter an EIA Balancing Authority Code.")
-                    else:
+                if selected_state:
+                    if st.button(f"Find Available IDs for {selected_state}", key="modal_find_stations"):
+                        _, noaa_token, _ = load_configuration()
                         st.markdown("---") # Visual separator
                         st.markdown("##### Combined City & Energy IDs")
-                        st.info("The table below shows NOAA stations for the selected state with your provided EIA code. Copy the required values for the YAML editor below.")
-                        find_noaa_stations(selected_state, noaa_token, eia_code_input.strip().upper())
+                        find_noaa_stations(selected_state, noaa_token)
 
             # --- Section 2: Manage Cities ---
             st.subheader("Manage Monitored Cities")
