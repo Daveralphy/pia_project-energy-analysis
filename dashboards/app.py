@@ -305,7 +305,7 @@ def main():
                 st.rerun()
 
         # Popover for editing the city configuration
-        with st.popover("⚙️ Edit Configuration", use_container_width=True):
+        with st.expander("⚙️ Edit Configuration", expanded=False):
             st.header("Configuration & Data Management")
             st.write("Here you can manage the list of cities for analysis and find the necessary IDs.")
 
