@@ -106,15 +106,11 @@ def _setup_pipeline_parameters(config, args):
         "start_date": start_date_str, "end_date": end_date_str
     }
 
-def main():
-    """Main function to orchestrate the data fetching process."""
-    parser = argparse.ArgumentParser(description="Run the weather and energy data pipeline.")
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--fetch-historical", type=int, metavar='DAYS', help="Fetch historical data for the specified number of past days.")
-    group.add_argument("--fetch-daily", action="store_true", help="Fetch data for the last full day (yesterday).")
-    
-    args = parser.parse_args()
-
+def main(args):
+    """
+    Main function to orchestrate the data fetching process.
+    Accepts parsed command-line arguments.
+    """
     print("--- Starting Data Fetching Process ---")
 
     # 1. Load Configuration

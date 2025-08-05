@@ -3,10 +3,10 @@ import sys
 import os
 import argparse
 
-def run_pipeline():
+def run_pipeline(args):
     """
     Imports and runs the main data pipeline function.
-    Returns True on success, False on failure.
+    Accepts parsed arguments and returns True on success, False on failure.
     """
     print("--- Starting Data Pipeline ---")
     try:
@@ -17,7 +17,7 @@ def run_pipeline():
 
         # Import the main function from the pipeline script
         from pia_project_energy_analysis.pipeline import main as run_pipeline_main
-        run_pipeline_main()
+        run_pipeline_main(args)
         print("--- Data Pipeline Finished Successfully ---")
         return True
     except Exception as e:
@@ -46,10 +46,15 @@ if __name__ == "__main__":
         action='store_true',
         help='If set, only runs the data pipeline and then exits.'
     )
+    # Add pipeline-specific arguments here
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--fetch-historical", type=int, metavar='DAYS', help="Fetch historical data for the specified number of past days.")
+    group.add_argument("--fetch-daily", action="store_true", help="Fetch data for the last full day (yesterday).")
+
     args = parser.parse_args()
 
     # The pipeline is always run.
-    pipeline_success = run_pipeline()
+    pipeline_success = run_pipeline(args)
 
     # The dashboard is only launched if we are NOT in pipeline-only mode
     # and the pipeline was successful.
