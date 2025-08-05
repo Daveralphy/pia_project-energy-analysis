@@ -189,7 +189,7 @@ def apply_compact_style():
             }
             /* Reduce padding in the sidebar */
             [data-testid="stSidebar"] > div:first-child {
-                padding-top: 1.5rem;
+                padding-top: 0.5rem;
             }
             /* Reduce the gap between streamlit elements */
             [data-testid="stVerticalBlock"] > [style*="gap"] {
