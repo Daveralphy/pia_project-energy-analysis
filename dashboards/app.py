@@ -95,7 +95,7 @@ def apply_compact_style():
 def run_pipeline_from_dashboard():
     """Executes the main data pipeline and streams its output to the dashboard."""
     log_area = st.empty()
-    log_content = "--- 🚀 Starting Data Pipeline ---\n"
+    log_content = "--- Starting Data Pipeline ---\n"
     log_area.code(log_content, language='log')
 
     # Construct the path to run.py and the project root
@@ -105,7 +105,7 @@ def run_pipeline_from_dashboard():
     # Use Popen to capture output in real-time
     # We run the script from the project_root directory to ensure all paths inside it resolve correctly
     process = subprocess.Popen(
-        [sys.executable, run_script_path],
+        [sys.executable, run_script_path, '--pipeline-only'],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -176,7 +176,7 @@ def main():
             if st.button("🔄 Refresh All Data"):
                 with st.spinner("Pipeline is running... see logs below."):
                     run_pipeline_from_dashboard()
-                st.success("✅ Pipeline finished! Reloading dashboard with new data...")
+                st.success("Pipeline finished! Reloading dashboard with new data...")
                 st.cache_data.clear() # Clear the data cache to force reload
                 time.sleep(3)
                 st.rerun()

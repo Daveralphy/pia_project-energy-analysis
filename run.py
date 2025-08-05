@@ -1,13 +1,14 @@
 import subprocess
 import sys
 import os
+import argparse
 
 def run_pipeline():
     """
     Imports and runs the main data pipeline function.
     Returns True on success, False on failure.
     """
-    print("--- 🚀 Starting Data Pipeline ---")
+    print("--- Starting Data Pipeline ---")
     try:
         # Explicitly add the project root to the Python path.
         # This makes the script runnable from anywhere and resolves import issues.
@@ -17,10 +18,10 @@ def run_pipeline():
         # Import the main function from the pipeline script
         from pia_project_energy_analysis.pipeline import main as run_pipeline_main
         run_pipeline_main()
-        print("--- ✅ Data Pipeline Finished Successfully ---")
+        print("--- Data Pipeline Finished Successfully ---")
         return True
     except Exception as e:
-        print(f"--- ❌ An error occurred during the pipeline execution: {e} ---")
+        print(f"--- An error occurred during the pipeline execution: {e} ---")
         # For more detailed debugging, you might want to log the full traceback
         # import traceback
         # traceback.print_exc()
@@ -28,7 +29,7 @@ def run_pipeline():
 
 def run_dashboard():
     """Launches the Streamlit dashboard using a subprocess."""
-    print("\n--- 📊 Launching Streamlit Dashboard ---")
+    print("\n--- Launching Streamlit Dashboard ---")
     dashboard_path = os.path.join('dashboards', 'app.py')
     try:
         # Use sys.executable to ensure we use the python from the current venv
@@ -39,7 +40,21 @@ def run_dashboard():
         print(f"Error launching dashboard: {e}")
 
 if __name__ == "__main__":
-    if run_pipeline():
-        run_dashboard()
-    else:
-        print("\nDashboard will not be launched due to a failure in the data pipeline.")
+    parser = argparse.ArgumentParser(description="Run the data pipeline and/or launch the dashboard.")
+    parser.add_argument(
+        '--pipeline-only',
+        action='store_true',
+        help='If set, only runs the data pipeline and then exits.'
+    )
+    args = parser.parse_args()
+
+    # The pipeline is always run.
+    pipeline_success = run_pipeline()
+
+    # The dashboard is only launched if we are NOT in pipeline-only mode
+    # and the pipeline was successful.
+    if not args.pipeline_only:
+        if pipeline_success:
+            run_dashboard()
+        else:
+            print("\nDashboard will not be launched due to a failure in the data pipeline.")
