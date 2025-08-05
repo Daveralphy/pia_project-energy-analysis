@@ -189,11 +189,15 @@ def apply_compact_style():
             }
             /* Reduce padding in the sidebar */
             [data-testid="stSidebar"] > div:first-child {
-                padding-top: 0.5rem;
+                padding-top: 0rem; /* Remove top padding */
             }
             /* Reduce the gap between streamlit elements */
             [data-testid="stVerticalBlock"] > [style*="gap"] {
                 gap: 0.1rem; /* Drastically reduce vertical spacing */
+            }
+            /* Tighter gap specifically for items within the sidebar */
+            [data-testid="stSidebar"] [data-testid="stVerticalBlock"] > [style*="gap"] {
+                gap: 0.25rem;
             }
             /* Increase font size for tab labels */
             button[data-testid="stTab"] {
