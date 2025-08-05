@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 # Import new helpers for the configuration page
-from .station_finder import find_noaa_stations, STATE_FIPS
+from dashboards.station_finder import find_noaa_stations, STATE_FIPS
 # Import from the project's source code
 project_root_for_imports = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, project_root_for_imports)
