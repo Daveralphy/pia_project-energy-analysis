@@ -103,9 +103,24 @@ def find_noaa_stations(state_name, noaa_token):
             data = _make_station_request(params, headers)
         results = data.get('results', [])
         if results:
-            df = pd.DataFrame(results)[['id', 'name', 'latitude', 'longitude']]
-            df.rename(columns={'id': 'noaa_station_id'}, inplace=True)
-            return df
+            df = pd.DataFrame(results)
+            
+            # Filter for major stations (typically at airports, ID starts with 'USW')
+            # These are more reliable for TMAX/TMIN data.
+            major_stations_df = df[df['id'].str.startswith('GHCND:USW')].copy()
+
+            if not major_stations_df.empty:
+                st.success(f"Found {len(major_stations_df)} major weather stations. These are recommended for analysis.")
+                # Process and return only the major stations
+                major_stations_df = major_stations_df[['id', 'name', 'latitude', 'longitude']]
+                major_stations_df.rename(columns={'id': 'noaa_station_id'}, inplace=True)
+                return major_stations_df
+            else:
+                # If no major stations, warn the user and show all available stations
+                st.warning(f"No major weather stations found for {state_name}. The smaller stations listed below may not have the required temperature data.", icon="⚠️")
+                all_stations_df = df[['id', 'name', 'latitude', 'longitude']]
+                all_stations_df.rename(columns={'id': 'noaa_station_id'}, inplace=True)
+                return all_stations_df
         else:
             st.info(f"No stations found for {state_name}.")
             return None
