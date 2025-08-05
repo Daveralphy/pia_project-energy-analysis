@@ -88,13 +88,14 @@ def _make_station_request(params, headers):
     return response.json()
 
 def find_noaa_stations(state_name, noaa_token):
+    """Finds NOAA stations and returns them as a DataFrame, or None on failure."""
     if not noaa_token:
         st.error("NOAA API token not found. Cannot search for stations. Please check your `.env` file.")
-        return
+        return None
     fips_code = STATE_FIPS.get(state_name)
     if not fips_code:
         st.warning(f"State '{state_name}' not found.")
-        return
+        return None
     headers = {'token': noaa_token}
     params = {'datasetid': 'GHCND', 'locationid': f'FIPS:{fips_code}', 'limit': 1000}
     try:
@@ -102,18 +103,15 @@ def find_noaa_stations(state_name, noaa_token):
             data = _make_station_request(params, headers)
         results = data.get('results', [])
         if results:
-            mapper = CityToBaMapper()
             df = pd.DataFrame(results)[['id', 'name', 'latitude', 'longitude']]
             df.rename(columns={'id': 'noaa_station_id'}, inplace=True)
-            mapping_results = df.apply(lambda row: mapper.find_ba_for_station(row['name'], state_name), axis=1)
-            df[['eia_ba_code', 'match_type']] = pd.DataFrame(mapping_results.tolist(), index=df.index)
-            display_cols = ['name', 'noaa_station_id', 'eia_ba_code', 'match_type', 'latitude', 'longitude']
-            st.info("The table below shows NOAA stations for the selected state with their estimated EIA region code.")
-            st.dataframe(df[display_cols], use_container_width=True)
+            return df
         else:
             st.info(f"No stations found for {state_name}.")
+            return None
     except Exception as e:
         st.error(f"Failed to fetch stations from NOAA API: {e}")
+        return None
 
 # --- END: Consolidated Helper Logic ---
 
@@ -340,23 +338,64 @@ def main():
                 
                 if selected_state:
                     if st.button(f"Find Available IDs for {selected_state}", key="modal_find_stations"):
+                        # Store search results in session state to persist them across reruns
                         _, noaa_token, _ = load_configuration()
-                        st.markdown("---") # Visual separator
-                        st.markdown("##### Combined City & Energy IDs")
-                        find_noaa_stations(selected_state, noaa_token)
+                        st.session_state.station_results = find_noaa_stations(selected_state, noaa_token)
+
+                # If search results exist in the session state, display the interactive editor
+                if 'station_results' in st.session_state and st.session_state.station_results is not None:
+                    st.markdown("---")
+                    st.markdown("##### Step 2: Select Stations to Add")
+                    st.info("Check the 'Add' box for stations you want to include. You can edit the city name for clarity.")
+                    
+                    results_df = st.session_state.station_results.copy()
+                    mapper = CityToBaMapper()
+                    
+                    # Automatically find the BA code and add it to the dataframe
+                    mapping_results = results_df.apply(lambda row: mapper.find_ba_for_station(row['name'], selected_state), axis=1)
+                    results_df[['eia_ba_code', 'match_type']] = pd.DataFrame(mapping_results.tolist(), index=results_df.index)
+                    
+                    # Add the 'Add' column for user selection
+                    results_df.insert(0, 'Add', False)
+
+                    # Display the interactive data editor
+                    edited_stations_df = st.data_editor(
+                        results_df[['Add', 'name', 'noaa_station_id', 'eia_ba_code', 'latitude', 'longitude']],
+                        column_config={"name": st.column_config.TextColumn("City Name (Editable)")},
+                        use_container_width=True,
+                        key="station_selector_editor"
+                    )
+
+                    if st.button("Add Selected to Configuration"):
+                        selected_rows = edited_stations_df[edited_stations_df['Add']]
+                        if not selected_rows.empty:
+                            # Prepare the selected data for YAML conversion
+                            rows_to_add = selected_rows.drop(columns=['Add']).to_dict('records')
+                            for row in rows_to_add:
+                                row['state'] = selected_state
+                            
+                            # Append to the current YAML in the text area
+                            current_yaml_list = yaml.safe_load(st.session_state.get('cities_yaml_string', '[]')) or []
+                            current_yaml_list.extend(rows_to_add)
+                            st.session_state.cities_yaml_string = yaml.dump(current_yaml_list, default_flow_style=False, sort_keys=False, indent=2)
+                            
+                            # Clear the search results and rerun to update the UI
+                            del st.session_state.station_results
+                            st.rerun()
 
             # --- Section 2: Manage Cities ---
             st.subheader("Manage Monitored Cities")
             st.info("Edit the city configurations below in YAML format. You can add, remove, or modify cities.")
             config, _, _ = load_configuration()
             if config:
-                # Get the current list of cities and convert to a YAML string for display
-                current_cities_list = config.get('cities', [])
-                cities_yaml_string = yaml.dump(current_cities_list, default_flow_style=False, sort_keys=False, indent=2)
+                # Initialize session state for the YAML editor if it doesn't exist
+                if 'cities_yaml_string' not in st.session_state:
+                    current_cities_list = config.get('cities', [])
+                    st.session_state.cities_yaml_string = yaml.dump(current_cities_list, default_flow_style=False, sort_keys=False, indent=2)
 
                 edited_yaml = st.text_area(
                     "City Configuration (YAML)",
-                    value=cities_yaml_string,
+                    value=st.session_state.cities_yaml_string,
                     height=400,
                     key="city_yaml_editor"
                 )
