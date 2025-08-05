@@ -218,46 +218,47 @@ def main():
                 st.cache_data.clear() # Clear the data cache to force reload
                 time.sleep(3)
                 st.rerun()
-        
-        if st.button("⚙️ Edit Configuration"):
-            with st.dialog("Configuration & Data Management", width="large"):
-                st.write("Here you can manage the list of cities for analysis and find the necessary IDs.")
 
-                # --- Section 1: Find IDs ---
-                with st.expander("🔎 Find City IDs"):
-                    st.subheader("Find NOAA Weather Station ID")
-                    st.info("Select a state to find the `noaa_station_id` for a city. Look for major airport stations (e.g., 'INTL AP') for the most reliable data.")
-                    
-                    _, noaa_token, _ = load_configuration()
+        # Replace the button/dialog with a popover for better compatibility and UI
+        with st.popover("⚙️ Edit Configuration", use_container_width=True):
+            st.header("Configuration & Data Management")
+            st.write("Here you can manage the list of cities for analysis and find the necessary IDs.")
 
-                    selected_state = st.selectbox("Select a U.S. State", options=sorted(STATE_FIPS.keys()), key="modal_state_select")
-                    if st.button("Find NOAA Stations", key="modal_find_stations"):
-                        find_noaa_stations(selected_state, noaa_token)
+            # --- Section 1: Find IDs ---
+            with st.expander("🔎 Find City IDs"):
+                st.subheader("Find NOAA Weather Station ID")
+                st.info("Select a state to find the `noaa_station_id` for a city. Look for major airport stations (e.g., 'INTL AP') for the most reliable data.")
 
-                    st.subheader("Find EIA Balancing Authority Code")
-                    st.info("The `eia_ba_code` identifies the regional power grid operator. Finding the correct code is best done manually.")
-                    st.markdown("Click here to look up EIA Balancing Authorities", unsafe_allow_html=True)
+                _, noaa_token, _ = load_configuration()
 
-                # --- Section 2: Manage Cities ---
-                st.subheader("Manage Monitored Cities")
-                config, _, _ = load_configuration()
-                if config:
-                    cities_df = pd.DataFrame(config.get('cities', []))
-                    edited_df = st.data_editor(
-                        cities_df, num_rows="dynamic", use_container_width=True, key="modal_city_editor"
-                    )
+                selected_state = st.selectbox("Select a U.S. State", options=sorted(STATE_FIPS.keys()), key="modal_state_select")
+                if st.button("Find NOAA Stations", key="modal_find_stations"):
+                    find_noaa_stations(selected_state, noaa_token)
 
-                    if st.button("💾 Save Changes & Refresh All Data", key="modal_save_refresh"):
-                        if save_configuration(edited_df):
-                            st.success("Configuration saved successfully! Now running the data pipeline...")
-                            with st.spinner("Pipeline is running... see logs below."):
-                                run_pipeline_from_dashboard()
-                            st.success("Pipeline finished! Reloading dashboard with new data...")
-                            st.cache_data.clear()
-                            time.sleep(3)
-                            st.rerun()
-                else:
-                    st.error("Could not load config.yaml. Cannot display city management tool.")
+                st.subheader("Find EIA Balancing Authority Code")
+                st.info("The `eia_ba_code` identifies the regional power grid operator. Finding the correct code is best done manually.")
+                st.markdown("Click here to look up EIA Balancing Authorities")
+
+            # --- Section 2: Manage Cities ---
+            st.subheader("Manage Monitored Cities")
+            config, _, _ = load_configuration()
+            if config:
+                cities_df = pd.DataFrame(config.get('cities', []))
+                edited_df = st.data_editor(
+                    cities_df, num_rows="dynamic", use_container_width=True, key="modal_city_editor"
+                )
+
+                if st.button("💾 Save Changes & Refresh All Data", key="modal_save_refresh"):
+                    if save_configuration(edited_df):
+                        st.success("Configuration saved successfully! Now running the data pipeline...")
+                        with st.spinner("Pipeline is running... see logs below."):
+                            run_pipeline_from_dashboard()
+                        st.success("Pipeline finished! Reloading dashboard with new data...")
+                        st.cache_data.clear()
+                        time.sleep(3)
+                        st.rerun()
+            else:
+                st.error("Could not load config.yaml. Cannot display city management tool.")
 
     # --- Data Filtering ---
     # This section is placed after the sidebar to ensure all filter values are available.
