@@ -9,11 +9,15 @@ import yaml
 import subprocess
 import sys
 import time
-# Import new helpers for the configuration page
-from dashboards.station_finder import find_noaa_stations, STATE_FIPS
-# Import from the project's source code
+
+# --- Path Setup ---
+# This must be at the top to ensure all project-level imports work correctly.
 project_root_for_imports = os.path.join(os.path.dirname(__file__), '..')
-sys.path.insert(0, project_root_for_imports)
+if project_root_for_imports not in sys.path:
+    sys.path.insert(0, project_root_for_imports)
+
+# --- Project-specific Imports ---
+from dashboards.station_finder import find_noaa_stations, STATE_FIPS
 from pia_project_energy_analysis.config_loader import load_configuration
 
 @st.cache_data
