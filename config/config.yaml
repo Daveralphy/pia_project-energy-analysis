@@ -1,95 +1,110 @@
-# config/config.yaml
 cities:
-  - name: "New York"
-    state: "New York"
-    noaa_station_id: "GHCND:USW00094728"
-    eia_ba_code: "NYIS"
-    latitude: 40.7128 # Approximate coordinates for mapping
-    longitude: -74.0060
-  - name: "Chicago"
-    state: "Illinois"
-    noaa_station_id: "GHCND:USW00094846"
-    eia_ba_code: "PJM" # PJM is the RTO for the Chicago area
-    latitude: 41.8781
-    longitude: -87.6298
-  - name: "Houston"
-    state: "Texas"
-    noaa_station_id: "GHCND:USW00012960"
-    eia_ba_code: "ERCO" # ERCOT covers most of Texas
-    latitude: 29.7604
-    longitude: -95.3698
-  - name: "Phoenix"
-    state: "Arizona"
-    noaa_station_id: "GHCND:USW00023183"
-    eia_ba_code: "AZPS" # Arizona Public Service
-    latitude: 33.4484
-    longitude: -112.0740
-  - name: "Seattle"
-    state: "Washington"
-    noaa_station_id: "GHCND:USW00024233"
-    eia_ba_code: "SCL" # Seattle City Light
-    latitude: 47.6062
-    longitude: -122.3321
-  - name: "Los Angeles"
-    state: "California"
-    noaa_station_id: "GHCND:USW00023174" # Los Angeles International Airport
-    eia_ba_code: "CISO" # California Independent System Operator
-    latitude: 34.0522
-    longitude: -118.2437
-  - name: "Miami"
-    state: "Florida"
-    noaa_station_id: "GHCND:USW00012839" # Miami International Airport
-    eia_ba_code: "FPL" # Florida Power & Light
-    latitude: 25.7617
-    longitude: -80.1918
-  - name: "Denver"
-    state: "Colorado"
-    noaa_station_id: "GHCND:USW00003017" # Denver-Stapleton
-    eia_ba_code: "PSCO" # Public Service Company of Colorado
-    latitude: 39.7392
-    longitude: -104.9903
-  - name: "Boston"
-    state: "Massachusetts"
-    noaa_station_id: "GHCND:USW00014739" # Logan International Airport
-    eia_ba_code: "ISNE" # ISO New England
-    latitude: 42.3601
-    longitude: -71.0589
-  - name: "Atlanta"
-    state: "Georgia"
-    noaa_station_id: "GHCND:USW00013874" # Hartsfield-Jackson Atlanta Int'l Airport
-    eia_ba_code: "SOCO" # Southern Company
-    latitude: 33.7490
-    longitude: -84.3880
-  - name: "Dallas"
-    state: "Texas"
-    noaa_station_id: "GHCND:USW00003927" # Dallas/Fort Worth Int'l Airport
-    eia_ba_code: "ERCO" # ERCOT
-    latitude: 32.7767
-    longitude: -96.7970
-  - name: "Philadelphia"
-    state: "Pennsylvania"
-    noaa_station_id: "GHCND:USW00013739" # Philadelphia Int'l Airport
-    eia_ba_code: "PJM" # PJM Interconnection
-    latitude: 39.9526
-    longitude: -75.1652
-  - name: "San Francisco"
-    state: "California"
-    noaa_station_id: "GHCND:USW00023234" # San Francisco Int'l Airport
-    eia_ba_code: "CISO" # California Independent System Operator
-    latitude: 37.7749
-    longitude: -122.4194
-  - name: "Washington D.C."
-    state: "District of Columbia"
-    noaa_station_id: "GHCND:USW00013743" # Reagan National Airport
-    eia_ba_code: "PJM" # PJM Interconnection
-    latitude: 38.9072
-    longitude: -77.0369
-
+- name: New York
+  state: New York
+  noaa_station_id: GHCND:USW00094728
+  eia_ba_code: NYIS
+  latitude: 40.7128
+  longitude: -74.006
+- name: Chicago
+  state: Illinois
+  noaa_station_id: GHCND:USW00094846
+  eia_ba_code: PJM
+  latitude: 41.8781
+  longitude: -87.6298
+- name: Houston
+  state: Texas
+  noaa_station_id: GHCND:USW00012960
+  eia_ba_code: ERCO
+  latitude: 29.7604
+  longitude: -95.3698
+- name: Phoenix
+  state: Arizona
+  noaa_station_id: GHCND:USW00023183
+  eia_ba_code: AZPS
+  latitude: 33.4484
+  longitude: -112.074
+- name: Seattle
+  state: Washington
+  noaa_station_id: GHCND:USW00024233
+  eia_ba_code: SCL
+  latitude: 47.6062
+  longitude: -122.3321
+- name: Los Angeles
+  state: California
+  noaa_station_id: GHCND:USW00023174
+  eia_ba_code: CISO
+  latitude: 34.0522
+  longitude: -118.2437
+- name: Miami
+  state: Florida
+  noaa_station_id: GHCND:USW00012839
+  eia_ba_code: FPL
+  latitude: 25.7617
+  longitude: -80.1918
+- name: Denver
+  state: Colorado
+  noaa_station_id: GHCND:USW00003017
+  eia_ba_code: PSCO
+  latitude: 39.7392
+  longitude: -104.9903
+- name: Boston
+  state: Massachusetts
+  noaa_station_id: GHCND:USW00014739
+  eia_ba_code: ISNE
+  latitude: 42.3601
+  longitude: -71.0589
+- name: Atlanta
+  state: Georgia
+  noaa_station_id: GHCND:USW00013874
+  eia_ba_code: SOCO
+  latitude: 33.749
+  longitude: -84.388
+- name: Dallas
+  state: Texas
+  noaa_station_id: GHCND:USW00003927
+  eia_ba_code: ERCO
+  latitude: 32.7767
+  longitude: -96.797
+- name: Philadelphia
+  state: Pennsylvania
+  noaa_station_id: GHCND:USW00013739
+  eia_ba_code: PJM
+  latitude: 39.9526
+  longitude: -75.1652
+- name: San Francisco
+  state: California
+  noaa_station_id: GHCND:USW00023234
+  eia_ba_code: CISO
+  latitude: 37.7749
+  longitude: -122.4194
+- name: Washington D.C.
+  state: District of Columbia
+  noaa_station_id: GHCND:USW00013743
+  eia_ba_code: PJM
+  latitude: 38.9072
+  longitude: -77.0369
+- name: STUTTGART 7.2 S, AR US
+  noaa_station_id: GHCND:US1ARAR0003
+  eia_ba_code: MISO
+  latitude: 34.389966
+  longitude: -91.532376
+  state: Arkansas
+- name: CROSSETT 0.9 S, AR US
+  noaa_station_id: GHCND:US1ARAS0009
+  eia_ba_code: MISO
+  latitude: 33.114522
+  longitude: -91.967141
+  state: Arkansas
+- name: HARRISON 8.2 NNW, AR US
+  noaa_station_id: GHCND:US1ARBN0019
+  eia_ba_code: MISO
+  latitude: 36.3441009521484
+  longitude: -93.1958694458008
+  state: Arkansas
 api_endpoints:
-  noaa_base_url: "https://www.ncei.noaa.gov/cdo-web/api/v2/"
-  eia_base_url: "https://api.eia.gov/v2/electricity/rto/daily-region-data/data/"
-
+  noaa_base_url: https://www.ncei.noaa.gov/cdo-web/api/v2/
+  eia_base_url: https://api.eia.gov/v2/electricity/rto/daily-region-data/data/
 data_paths:
-  raw_data_dir: "data/raw"
-  processed_data_dir: "data/processed"
-  output_data_dir: "data/output"
+  raw_data_dir: data/raw
+  processed_data_dir: data/processed
+  output_data_dir: data/output

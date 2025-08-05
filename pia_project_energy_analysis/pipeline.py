@@ -31,8 +31,9 @@ def fetch_and_save_eia_data(city, eia_base_url, eia_api_key, full_raw_data_path,
     city_name = city['name']
     eia_ba_code = city.get('eia_ba_code')
     
-    if not eia_ba_code:
-        print(f"Skipping EIA data for {city_name}: no 'eia_ba_code' in config.")
+    # More robust check for invalid BA codes, including the string 'None' or 'N/A'
+    if not eia_ba_code or str(eia_ba_code).strip().upper() in ['NONE', 'N/A']:
+        print(f"Skipping EIA data for {city_name}: no valid 'eia_ba_code' in config (found: {eia_ba_code}).")
         return None
 
     print(f"Fetching EIA data for {city_name} (Balancing Authority: {eia_ba_code})...")
@@ -164,7 +165,7 @@ def main(args):
         time.sleep(1)
 
     # Step 4: Combine all processed files into a master file
-    combine_processed_data(params["full_processed_data_path"], params["full_output_data_path"])
+    combine_processed_data(params["full_processed_data_path"], params["full_output_data_path"], params["cities"])
 
     # Step 5: Save the data quality report
     report_path = os.path.join(params["full_output_data_path"], "data_quality_report.json")
