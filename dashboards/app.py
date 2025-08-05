@@ -232,18 +232,23 @@ def main():
 
             # --- Section 1: Find IDs ---
             with st.expander("🔎 Find City IDs"):
-                st.subheader("Find NOAA Weather Station ID")
-                st.info("Select a state to find the `noaa_station_id` for a city. Look for major airport stations (e.g., 'INTL AP') for the most reliable data.")
+                st.subheader("Find Required IDs for a City")
+                st.info("To add a new city, you need its **NOAA Station ID** and its **EIA Balancing Authority Code**. Use this tool to find them.")
 
                 _, noaa_token, _ = load_configuration()
 
                 selected_state = st.selectbox("Select a U.S. State", options=sorted(STATE_FIPS.keys()), key="modal_state_select")
-                if st.button("Find NOAA Stations", key="modal_find_stations"):
+                
+                # This button will now trigger the display of both NOAA and EIA information.
+                if st.button("Find Available IDs for State", key="modal_find_stations"):
+                    st.markdown("---")
+                    st.markdown("##### 1. Find NOAA Weather Station ID")
+                    st.info("Look for major airport stations (e.g., 'INTL AP') for the most reliable data. Copy the `id` value.")
                     find_noaa_stations(selected_state, noaa_token)
-
-                st.subheader("Find EIA Balancing Authority Code")
-                st.info("The `eia_ba_code` identifies the regional power grid operator. Finding the correct code is best done manually.")
-                st.markdown("Click here to look up EIA Balancing Authorities")
+                    st.markdown("---")
+                    st.markdown("##### 2. Find EIA Balancing Authority Code")
+                    st.info("The `eia_ba_code` identifies the regional power grid. Use the map at the link below to find the abbreviation for the region your city is in (e.g., 'NYIS' for New York, 'ERCO' for most of Texas).")
+                    st.markdown("**Click here to look up EIA Balancing Authorities on their interactive map.**")
 
             # --- Section 2: Manage Cities ---
             st.subheader("Manage Monitored Cities")
