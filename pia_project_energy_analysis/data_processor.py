@@ -46,12 +46,21 @@ def process_noaa_data(raw_file_path):
         # Pivot the table to get TMAX and TMIN as columns
         weather_df = df.pivot(index='date', columns='datatype', values='value').reset_index()
         
+        # Ensure TMAX and TMIN columns exist, creating them with NaN if they don't.
+        # This makes the function resilient to stations that only report one metric.
+        if 'TMAX' not in weather_df.columns:
+            weather_df['TMAX'] = pd.NA
+        if 'TMIN' not in weather_df.columns:
+            weather_df['TMIN'] = pd.NA
+
         # Convert temperatures to Fahrenheit
         weather_df['TMAX_F'] = weather_df['TMAX'].apply(_convert_temp_to_fahrenheit)
         weather_df['TMIN_F'] = weather_df['TMIN'].apply(_convert_temp_to_fahrenheit)
         
         # Data Quality Check: Flag days where TMIN > TMAX, a logical impossibility.
-        invalid_temp_rows = weather_df.dropna(subset=['TMIN_F', 'TMAX_F'])[weather_df['TMIN_F'] > weather_df['TMAX_F']]
+        # Corrected boolean indexing for safety
+        valid_temps_df = weather_df.dropna(subset=['TMIN_F', 'TMAX_F'])
+        invalid_temp_rows = valid_temps_df[valid_temps_df['TMIN_F'] > valid_temps_df['TMAX_F']]
         if not invalid_temp_rows.empty:
             warning_msg = f"DATA QUALITY WARNING for {os.path.basename(raw_file_path)}:"
             print(f"  [!] {warning_msg}")
@@ -154,8 +163,8 @@ def merge_and_save_data(weather_df, energy_df, city_name, processed_dir):
     output_path = os.path.join(processed_dir, f"{city_name.lower().replace(' ', '_')}_processed_data.csv")
 
     if weather_df is not None and energy_df is not None:
-        # Both are available: merge them
-        merged_df = pd.merge(weather_df, energy_df, on='date', how='inner')
+        # Both are available: merge them using an outer join to preserve all data points
+        merged_df = pd.merge(weather_df, energy_df, on='date', how='outer')
         merged_df['city'] = city_name
         merged_df.to_csv(output_path, index=False)
         print(f"Successfully merged and saved processed data for {city_name} to {output_path}")
