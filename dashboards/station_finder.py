@@ -58,11 +58,26 @@ class EiaRegionMapper:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     self._regions_data = json.load(f)
             except FileNotFoundError:
-                st.error(
-                    "**Critical Error:** The `eia_ba_regions.json` file is missing from the `dashboards/` directory. "
-                    "Please see the instructions to download this required file.", icon="🚨"
-                )
-                self._regions_data = {"features": []}
+                st.warning("`eia_ba_regions.json` not found. Attempting to download it automatically...")
+                url = "https://gist.githubusercontent.com/gchavez2/53176516091732a079e710b143242949/raw/e025f6834c0e4819779045f0f8075313364e0b89/eia_ba_regions.json"
+                try:
+                    with st.spinner("Downloading EIA region data (this happens only once)..."):
+                        response = requests.get(url, timeout=30)
+                        response.raise_for_status()
+                        
+                        # Save the file
+                        with open(file_path, 'w', encoding='utf-8') as f:
+                            f.write(response.text)
+                        
+                        # Now try to load it again
+                        self._regions_data = response.json()
+                        st.success("Successfully downloaded and loaded EIA region data.")
+                except requests.exceptions.RequestException as e:
+                    st.error(f"Failed to download the EIA region data file: {e}", icon="🚨")
+                    self._regions_data = {"features": []}
+                except json.JSONDecodeError as e:
+                    st.error(f"Downloaded EIA region data file is corrupt: {e}", icon="🚨")
+                    self._regions_data = {"features": []}
             except json.JSONDecodeError as e:
                 st.error(f"Error decoding `eia_ba_regions.json`. The file may be corrupt. Error: {e}", icon="🚨")
                 self._regions_data = {"features": []}
