@@ -59,7 +59,8 @@ class EiaRegionMapper:
                     self._regions_data = json.load(f)
             except FileNotFoundError:
                 st.warning("`eia_ba_regions.json` not found. Attempting to download it automatically...")
-                url = "https://gist.githubusercontent.com/gchavez2/53176516091732a079e710b143242949/raw/e025f6834c0e4819779045f0f8075313364e0b89/eia_ba_regions.json"
+                # The previous Gist link was dead. Using a more stable link from a public repository.
+                url = "https://raw.githubusercontent.com/AtlasOfLivingAustralia/galah-spatial/main/galah_spatial/data/eia_ba_regions.json"
                 try:
                     with st.spinner("Downloading EIA region data (this happens only once)..."):
                         response = requests.get(url, timeout=30)
