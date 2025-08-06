@@ -75,9 +75,11 @@ class CityToBaMapper:
         city_name_lower = station_name.lower().split(',')[0].split(' ')[0]
         if city_name_lower in CITY_TO_BA_MAPPING:
             return CITY_TO_BA_MAPPING[city_name_lower], "City Match"
-        state_name_lower = state_name.lower()
-        if state_name_lower in STATE_TO_PRIMARY_BA:
-            return STATE_TO_PRIMARY_BA[state_name_lower], "State Estimate"
+        # Add a defensive check to ensure state_name is not None
+        if state_name:
+            state_name_lower = state_name.lower()
+            if state_name_lower in STATE_TO_PRIMARY_BA:
+                return STATE_TO_PRIMARY_BA[state_name_lower], "State Estimate"
         return 'N/A', "No Match"
 
 @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3))

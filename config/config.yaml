@@ -101,6 +101,36 @@ cities:
   latitude: 36.3441009521484
   longitude: -93.1958694458008
   state: Arkansas
+- name: Las Vegas
+  state: Nevada
+  noaa_station_id: GHCND:USW00023169
+  eia_ba_code: NEVP
+  latitude: 36.1699
+  longitude: -115.1398
+- name: New Orleans
+  state: Louisiana
+  noaa_station_id: GHCND:USW00012916
+  eia_ba_code: MISO
+  latitude: 29.9511
+  longitude: -90.0715
+- name: Kansas City
+  state: Missouri
+  noaa_station_id: GHCND:USW00003947
+  eia_ba_code: SWPP
+  latitude: 39.0997
+  longitude: -94.5786
+- name: Minneapolis
+  state: Minnesota
+  noaa_station_id: GHCND:USW00014922
+  eia_ba_code: MISO
+  latitude: 44.9778
+  longitude: -93.265
+- name: Salt Lake City
+  state: Utah
+  noaa_station_id: GHCND:USW00024127
+  eia_ba_code: PACE
+  latitude: 40.7608
+  longitude: -111.891
 api_endpoints:
   noaa_base_url: https://www.ncei.noaa.gov/cdo-web/api/v2/
   eia_base_url: https://api.eia.gov/v2/electricity/rto/daily-region-data/data/
