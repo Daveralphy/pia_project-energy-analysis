@@ -175,32 +175,46 @@ def main(args):
 
     # 3. Fetch Data for Each City
     for city in params["cities"]:
-        # Validate that the city entry has all the required keys before processing
-        required_keys = ['name', 'noaa_station_id', 'eia_ba_code']
-        if not all(key in city for key in required_keys):
-            print(f"\nSkipping an entry due to missing keys. Found: {list(city.keys())}. Required: {required_keys}")
-            continue
+        try:
+            # Validate that the city entry has all the required keys before processing
+            # eia_ba_code is optional as it's handled gracefully if missing.
+            required_keys = ['name', 'noaa_station_id']
+            if not all(key in city for key in required_keys):
+                print(f"\nSkipping an entry due to missing keys. Found: {list(city.keys())}. Required: {required_keys}")
+                continue
 
-        # Step 1: Fetch raw data
-        noaa_file = fetch_and_save_noaa_data(city, params["noaa_base_url"], noaa_token, params["full_raw_data_path"], params["start_date"], params["end_date"])
-        eia_file = fetch_and_save_eia_data(city, params["eia_base_url"], eia_api_key, params["full_raw_data_path"], params["start_date"], params["end_date"])
+            # Step 1: Fetch raw data
+            noaa_file = fetch_and_save_noaa_data(city, params["noaa_base_url"], noaa_token, params["full_raw_data_path"], params["start_date"], params["end_date"])
+            eia_file = fetch_and_save_eia_data(city, params["eia_base_url"], eia_api_key, params["full_raw_data_path"], params["start_date"], params["end_date"])
 
-        # Step 2: Process any available data
-        print(f"\nProcessing available data for {city['name']}...")
+            # Step 2: Process any available data
+            print(f"\nProcessing available data for {city['name']}...")
 
-        # Process each file if it exists, otherwise the result is None
-        weather_df, noaa_warnings = process_noaa_data(noaa_file) if noaa_file else (None, [])
-        energy_df, eia_warnings = process_eia_data(eia_file) if eia_file else (None, [])
+            # Process each file if it exists, otherwise the result is None
+            weather_df, noaa_warnings = process_noaa_data(noaa_file)
+            energy_df, eia_warnings = process_eia_data(eia_file)
 
-        # Collect warnings from both processors
-        all_warnings.extend(noaa_warnings)
-        all_warnings.extend(eia_warnings)
+            # Collect warnings from both processors
+            all_warnings.extend(noaa_warnings)
+            all_warnings.extend(eia_warnings)
 
-        # Step 3: Merge and/or save the processed data
-        merge_and_save_data(weather_df, energy_df, city['name'], params["full_processed_data_path"])
+            # Step 3: Merge and/or save the processed data
+            merge_and_save_data(weather_df, energy_df, city['name'], params["full_processed_data_path"])
 
-        # Be a good API citizen: wait 1 second between requests to avoid rate-limiting.
-        time.sleep(1)
+            # Be a good API citizen: wait 1 second between requests to avoid rate-limiting.
+            time.sleep(1)
+        except Exception as e:
+            print(f"\n---!!! An unrecoverable error occurred while processing city: {city.get('name', 'Unknown')} !!!---")
+            print(f"    Error: {e}")
+            print(f"    Skipping this city and continuing with the next one.")
+            all_warnings.append({
+                "file": city.get('name', 'Unknown'),
+                "check": "City Processing Loop",
+                "level": "CRITICAL",
+                "message": "The pipeline failed to process this city due to an unhandled exception.",
+                "details": str(e)
+            })
+            continue # Ensure the loop continues to the next city
 
     # Step 4: Combine all processed files into a master file
     combine_processed_data(params["full_processed_data_path"], params["full_output_data_path"], params["cities"])
