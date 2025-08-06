@@ -189,6 +189,13 @@ def merge_and_save_data(weather_df, energy_df, city_name, processed_dir):
     if final_df is None:
         final_df = pd.DataFrame()
 
+    # Enforce a consistent schema to prevent KeyErrors in the dashboard
+    # if a data source is completely missing for a run.
+    expected_cols = ['date', 'TMAX_F', 'TMIN_F', 'energy_mwh']
+    for col in expected_cols:
+        if col not in final_df.columns:
+            final_df[col] = pd.NA
+
     final_df['city'] = city_name
     final_df.to_csv(output_path, index=False)
     if final_df.empty:
