@@ -595,44 +595,32 @@ def display_geographic_overview(df, temp_col, temp_label, selected_city):
         lambda x: f"{x:,.0f} MWh" if pd.notna(x) else "Energy data not available"
     )
 
-    fig = px.scatter_map(
+    fig = px.scatter_map( # The figure is now always created with data for ALL cities.
         map_data,
         lat="latitude",
         lon="longitude",
         size="size_for_map",
-        color=temp_col, # Color by temperature instead of city for better visualization
-        text="city", # Add city names as text labels on the map
+        color="city", # Use city for distinct colors instead of temperature
         hover_name="city",
+        # Use explicit custom_data for a more robust hover template
         custom_data=[temp_col, 'hover_energy_text'],
-        color_continuous_scale=px.colors.sequential.Plasma, # Use a sequential color scale for temperature
+        color_discrete_sequence=px.colors.qualitative.Vivid, # Use a color scale with distinct colors
         size_max=50,
         zoom=3,
         map_style="carto-positron"
     )
-    
-    # Update traces to style the text and hover info
-    fig.update_traces(
-        textposition='top center',
-        textfont=dict(size=10, color='black'),
-        hovertemplate=
-            f'<b>%{{hovertext}}</b><br>' +
-            f'{temp_label}: %{{customdata[0]:.1f}}°F<br>' +
-            'Energy: %{customdata[1]}<extra></extra>'
+    # Customize the hover label for clarity
+    fig.update_traces(hovertemplate=
+        f'<b>%{{hovertext}}</b><br>' +
+        f'{temp_label}: %{{customdata[0]:.1f}}°F<br>' +
+        'Energy: %{customdata[1]}<extra></extra>'
     )
-    fig.update_layout(
-        margin={"r":0,"t":0,"l":0,"b":0},
-        coloraxis_colorbar=dict(title=temp_label.replace(" (°F)", "")), # Add a title to the color bar
-        showlegend=False # Hide the now-redundant city legend
-    )
+    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
 
     # If a specific city is selected, hide all other traces.
     if selected_city != 'All Cities':
-        # Instead of hiding other cities, we now zoom in on the selected one.
-        selected_city_data = map_data[map_data['city'] == selected_city].iloc[0]
-        fig.update_layout(
-            mapbox_center={"lat": selected_city_data['latitude'], "lon": selected_city_data['longitude']},
-            mapbox_zoom=6
-        )
+        fig.update_traces(visible=False) # First, hide all traces
+        fig.update_traces(visible=True, selector=dict(name=selected_city)) # Then, make only the selected one visible
 
     st.plotly_chart(fig, use_container_width=True)
 
