@@ -253,6 +253,12 @@ def combine_processed_data(processed_dir, output_dir, configured_cities):
         missing_cities_df = pd.DataFrame([{'city': name} for name in missing_cities])
         master_df = pd.concat([master_df, missing_cities_df], ignore_index=True)
 
+    # Enforce a consistent schema on the final master dataframe before saving.
+    expected_cols = ['date', 'TMAX_F', 'TMIN_F', 'energy_mwh']
+    for col in expected_cols:
+        if col not in master_df.columns:
+            master_df[col] = pd.NA
+
     # Sort and save the final master file
     if not master_df.empty:
         master_df.sort_values(by=['city', 'date'], inplace=True, na_position='first')
