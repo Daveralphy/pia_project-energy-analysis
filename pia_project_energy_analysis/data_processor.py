@@ -117,6 +117,11 @@ def process_eia_data(raw_file_path):
         with open(raw_file_path, 'r') as f:
             data = json.load(f)
         
+        # Handle empty data case gracefully
+        if not data:
+            print(f"  - No data found in EIA file {os.path.basename(raw_file_path)}. Returning empty dataframe.")
+            return pd.DataFrame(columns=['date', 'energy_mwh']), []
+
         df = pd.DataFrame(data)
         # Convert period to datetime and extract only the date part
         df['date'] = pd.to_datetime(df['period']).dt.date
