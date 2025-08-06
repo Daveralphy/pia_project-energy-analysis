@@ -14,72 +14,72 @@ This is a 3-minute video presentation, covering:
 
 ## Video Script
 
-### 1. Introduction
+**(Intro Music Fades)**
 
-**(VISUAL: You on camera, friendly and welcoming. Title slide with your name and project title.)**
+**Daveal:**
+"Hi, guys! Welcome to my YouTube channel. My name is Raphael Daveal, and in this video, I’ll walk you through how I created a self-sufficient weather and energy analysis dashboard."
 
-"Hi guys, welcome to my YouTube channel! My name is Raphael Daveal, and in this video, I’ll be walking you through a data engineering and analytics project I built. We're going to explore how we can use data to solve a very expensive, real-world problem for the energy industry."
+"But before we dive in, why is a project like this so important? A recent McKinsey study found that data-driven organizations are **23 times** more likely to acquire customers and **six times** more likely to retain them. That’s the power of data, and it’s what this project is all about."
 
-### 2. Importance of Data Analysis
+**(Transition to a graphic or slide about the energy industry)**
 
-**(VISUAL: A clean graphic with a compelling statistic.)**
+**Daveal:**
+"Now, imagine you're an energy utility company. You're in a high-stakes balancing act every single day. If you produce too much power, you waste millions on fuel and resources. But if you produce too little, you risk blackouts. This dashboard tackles that exact problem by creating a direct link between weather patterns and energy demand."
 
-"First, let's talk about why data analysis is so critical for businesses today. It’s not just about numbers; it’s about making smarter decisions. In fact, a study by McKinsey found that data-driven organizations are 23 times more likely to acquire customers and 6 times as likely to retain them. That’s the power of data, and it’s what this project is all about."
+"It helps energy companies, grid operators, and even renewable energy firms understand how a heatwave in Phoenix or a cold snap in New York will impact energy use. This way, they can optimize power generation, reduce costs, and ensure a stable, reliable energy supply for everyone."
 
-### 3. Project Importance and Business Value
+**(Transition to a screen recording of the dashboard)**
 
-**(VISUAL: The 'Business Value' section of the README, followed by images of a power grid or a city skyline.)**
+**Daveal:**
+"So, let's see it in action. Here is the main dashboard. The first thing you'll notice is that it's completely self-contained. Let's start with the configuration."
 
-"So, how does this project help businesses? Imagine you're an energy utility company. If you produce too much power, you waste millions on fuel and resources. If you produce too little, you risk blackouts. My project tackles this by creating a direct link between weather patterns and energy demand.
+**(Show the "Edit Configuration" expander on the main page)**
 
-This tool can support energy companies, grid operators, and even renewable energy firms. By understanding how a heatwave in Phoenix or a cold snap in New York will affect energy use, these businesses can optimize power generation, reduce operational costs, and ensure a stable and reliable energy supply for everyone."
+**Daveal:**
+"Right here on the main page, I can manage my entire list of cities. Let's say I want to add a new one. I can use the 'Find City IDs' tool, select a state like Arkansas, and the dashboard automatically finds reliable, active weather stations for me, even warning me if a station might not have good data."
 
-### 4. Repository Structure
+**(Show yourself selecting a station and adding it to the YAML)**
 
-**(VISUAL: Screen recording of you scrolling through the project files, highlighting the main directories.)**
+**Daveal:**
+"I can select a few, add them to my configuration, and you can see them appear right here in the YAML editor. Once I'm happy with my list of cities, I just click 'Save Configuration'."
 
-"Before we see it in action, let's quickly look at the structure. This project is organized like a professional software application. In the root, we have our configuration files, like `pyproject.toml` which manages all our dependencies.
+**(Show the sidebar)**
 
-The core logic lives in the `pia_project_energy_analysis` directory. This is where you'll find separate Python files for fetching data, processing it, and the main pipeline script that ties it all together. The user interface, or the dashboard, is in the `dashboards` directory. And finally, all the data has its own place, separated into `raw`, `processed`, and final `output` folders. This clean structure makes the project easy to maintain and scale."
+**Daveal:**
+"Now, to get the data for this new setup, I just go to the sidebar, pick my date range, and hit 'Refresh All Data'. This kicks off the entire backend pipeline right from the dashboard, fetching and processing everything we need."
 
-### 5. How It Works
+**(Show the main dashboard with KPIs)**
 
-**(VISUAL: Show the terminal and highlight the `run.py` file.)**
+**Daveal:**
+"Once the data is loaded, the dashboard gives us an instant overview with these key metrics: the number of locations we're analyzing, the date range, average temperatures, and the average daily energy consumption."
 
-"One of the best parts about this project is its simplicity to run. I’ve created a single entry point. All you have to do is run one command in the terminal: `python run.py`. This single command kicks off the entire process, from fetching the data to launching the interactive dashboard."
+**(Walk through the dashboard tabs)**
 
-### 6. The Input: Fetching Data
+**Daveal:**
+"On the **Geographic Overview**, we get a map that instantly shows where energy demand is highest. I can hover over any city, like Houston, to get its specific temperature and energy data."
 
-**(VISUAL: Show snippets of the `eia_fetcher.py` or `noaa_fetcher.py` code, highlighting the API URLs.)**
+"The **Time Series** tab lets us dive deeper. We can see exactly how energy demand spikes when the temperature rises. We can even compare multiple cities side-by-side to see how different regions react to weather changes."
 
-"So, what happens when you run that command? First, the pipeline connects to two different government APIs. It pulls daily weather data, like maximum and minimum temperatures, from the National Oceanic and Atmospheric Administration, or NOAA. At the same time, it fetches daily energy consumption data from the Energy Information Administration, the EIA. The pipeline is built to be robust, with automatic retries, so even if an API is temporarily down, it won't fail."
+"The **Correlation Analysis** tab proves this relationship with hard numbers, showing a clear positive correlation between temperature and energy use. This is the kind of data that's essential for building accurate predictive models."
 
-### 7. The Processing: Creating Value
+"The **Usage Patterns** heatmap gives us even more granular insights, showing how consumption habits change not just with temperature, but also by the day of the week."
 
-**(VISUAL: Show a diagram or animation of two separate data streams (weather, energy) being cleaned and then merged into one.)**
+"And finally, the **Data Quality Report** gives us confidence in our analysis by confirming that the data from our pipeline is clean and reliable."
 
-"Raw data from different sources is rarely perfect. So, the next step is processing. The pipeline cleans the data by handling any missing values and flagging outliers, like impossible temperatures or negative energy usage. Then, it merges the weather and energy data together based on the date, creating a single, powerful master dataset where every row contains the weather and energy usage for a specific city on a specific day. This is the clean data that powers our analysis."
+**(Transition to a high-level diagram or a shot of the code in VS Code)**
 
-### 8. The Output: The Dashboard
+**Daveal:**
+"So, how does this all work behind the scenes? The project is built like a professional software application."
 
-**(VISUAL: A full screen recording of you interacting with the Streamlit dashboard.)**
+"I started on GitHub by creating a clean repository structure. The core logic is in the `pia_project_energy_analysis` package. Inside, I have two 'fetcher' files that are responsible for retrieving data from the NOAA and EIA APIs. A 'data processor' then takes that raw JSON data, cleans it, and converts it into a clean CSV format. A 'pipeline' file orchestrates this entire process, and a single `run.py` script triggers this entire workflow, which is what gets called automatically when you hit the refresh button on the dashboard."
 
-"This is where all that work pays off. The data is presented in an interactive Streamlit dashboard, designed to make complex information easy to understand.
+**(Return to you on camera for the conclusion)**
 
-**(Point to the map):** On the Geographic Overview, you can immediately see which cities are hot and which are consuming the most energy. If I select just Houston, the map zooms in, but the color and size stay consistent, so you always know which city you're looking at.
+**Daveal:**
+"So that's it! A fully automated, self-sufficient dashboard that transforms raw data into actionable business intelligence."
 
-**(Click on the Time Series tab):** In the Time Series chart, we can clearly see the relationship over time. When we look at all cities, we can compare their temperature trends side-by-side. You can see the summer peaks in Phoenix are much more extreme than in Seattle. For a utility company, this is crucial for knowing which regions need the most power.
+"I'd like to end by giving a huge thank you to the Pioneer Artificial Intelligence Academy, headed by Mr. Dallan Quass, for this incredible learning opportunity. I also want to extend my sincere regards to my amazing team lead, Promise, and all my teammates for their support and collaboration."
 
-**(Click on the Correlation tab):** The Correlation plot proves this relationship with numbers. We see a strong positive correlation, which confirms that as temperature goes up, so does energy demand. This is the kind of hard data a business needs to build accurate predictive models.
+"Thank you so much for watching. If you found this project interesting, please hit the like button, subscribe for more content, and feel free to share it or leave a comment below with any questions. See you in the next one!"
 
-**(Click on the Heatmap tab):** Finally, the Heatmap gives us even deeper insights, showing us that energy usage is different on a hot weekday versus a hot weekend. This allows for even more granular, day-by-day planning.
-
-Together, these visualizations don't just show data; they tell a story that can be used to make smart, cost-saving decisions."
-
-### 9. Conclusion and Acknowledgements
-
-**(VISUAL: A final slide with your contact info, GitHub link, and logos for Pioneer AI Academy.)**
-
-"I'd like to end by giving a huge thank you to the Pioneer Artificial Intelligence Academy, headed by Mr. Dallan Quass, for this incredible learning opportunity. I also want to extend my sincere regards to my amazing team lead, Promise, and all my teammates for their support and collaboration.
-
-Thank you so much for watching. If you found this project interesting, please hit the like button, subscribe for more content, and feel free to share it or leave a comment below with any questions. See you in the next one!"
+**(Outro Music Fades In)**
