@@ -227,8 +227,8 @@ def apply_compact_style():
         </style>
     """, unsafe_allow_html=True)
 
-def run_pipeline_from_dashboard():
-    """Executes the main data pipeline and streams its output to the dashboard."""
+def run_pipeline_from_dashboard(start_date=None, end_date=None):
+    """Executes the main data pipeline, optionally for a specific date range."""
     log_area = st.empty()
     log_content = "--- Starting Data Pipeline ---\n"
     log_area.code(log_content, language='log')
@@ -473,6 +473,13 @@ def main():
                 key="city_yaml_editor"
             )
 
+            st.subheader("Select Date Range for Data Fetch")
+            col1, col2 = st.columns(2)
+            with col1:
+                fetch_start_date = st.date_input("Fetch Start Date", value=pd.to_datetime('today') - pd.DateOffset(years=1))
+            with col2:
+                fetch_end_date = st.date_input("Fetch End Date", value=pd.to_datetime('today') - pd.DateOffset(days=1))
+
             if st.button("💾 Save Changes & Refresh All Data", key="modal_save_refresh"):
                 try:
                     # Parse the user's edited YAML string
@@ -480,7 +487,7 @@ def main():
                     if save_configuration(new_cities_list):
                         st.success("Configuration saved successfully! Now running the data pipeline...")
                         with st.spinner("Pipeline is running... see logs below."):
-                            run_pipeline_from_dashboard()
+                            run_pipeline_from_dashboard(start_date=fetch_start_date, end_date=fetch_end_date)
                         st.success("Pipeline finished! Reloading dashboard with new data...") 
                         st.cache_data.clear()
                         time.sleep(3)

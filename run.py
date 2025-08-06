@@ -50,6 +50,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--fetch-historical", type=int, metavar='DAYS', help="Fetch historical data for the specified number of past days.")
     group.add_argument("--fetch-daily", action="store_true", help="Fetch data for the last full day (yesterday).")
+    group.add_argument("--fetch-range", nargs=2, metavar=('START_DATE', 'END_DATE'), help="Fetch data for a specific date range (YYYY-MM-DD).")
 
     args = parser.parse_args()
 

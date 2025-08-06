@@ -88,7 +88,15 @@ def _setup_pipeline_parameters(config, args):
     os.makedirs(full_output_data_path, exist_ok=True)
 
     # Define a date range for the data fetch based on command-line arguments
-    if args.fetch_historical:
+    if args.fetch_range:
+        print(f"Mode: Custom range fetch from {args.fetch_range[0]} to {args.fetch_range[1]}.")
+        try:
+            start_date = datetime.strptime(args.fetch_range[0], '%Y-%m-%d')
+            end_date = datetime.strptime(args.fetch_range[1], '%Y-%m-%d')
+        except ValueError:
+            print("Invalid date format for --fetch-range. Please use YYYY-MM-DD. Exiting.")
+            return None
+    elif args.fetch_historical:
         print(f"Mode: Historical fetch for the last {args.fetch_historical} days.")
         end_date = datetime.now()
         start_date = end_date - timedelta(days=args.fetch_historical)
