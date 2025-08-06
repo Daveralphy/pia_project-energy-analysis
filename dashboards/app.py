@@ -237,10 +237,15 @@ def run_pipeline_from_dashboard(start_date=None, end_date=None):
     project_root = os.path.join(os.path.dirname(__file__), '..')
     run_script_path = os.path.join(project_root, 'run.py')
 
+    # Build the command to run the pipeline, adding the date range if provided.
+    command = [sys.executable, run_script_path, '--pipeline-only']
+    if start_date and end_date:
+        command.extend(['--fetch-range', start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')])
+
     # Use Popen to capture output in real-time
     # We run the script from the project_root directory to ensure all paths inside it resolve correctly
     process = subprocess.Popen(
-        [sys.executable, run_script_path, '--pipeline-only'],
+        command,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
