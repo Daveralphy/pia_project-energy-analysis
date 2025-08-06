@@ -16,15 +16,18 @@ def fetch_and_save_noaa_data(city, noaa_base_url, noaa_token, full_raw_data_path
 
     weather_data = fetch_noaa_data(noaa_base_url, noaa_token, station_id, start_date, end_date, city_name=city_name)
 
-    if weather_data and 'results' in weather_data:
-        filename = os.path.join(full_raw_data_path, f"noaa_{city_name.lower().replace(' ', '_')}_{start_date}_to_{end_date}.json")
+    filename = os.path.join(full_raw_data_path, f"noaa_{city_name.lower().replace(' ', '_')}_{start_date}_to_{end_date}.json")
+    
+    # Always save a file to ensure the city is processed, even if the fetch fails.
+    if weather_data and 'results' in weather_data and weather_data['results']:
         with open(filename, 'w') as f:
             json.dump(weather_data['results'], f, indent=4)
         print(f"Successfully fetched and saved {len(weather_data['results'])} records to {filename}")
-        return filename
     else:
-        print(f"Failed to fetch or no NOAA data returned for {city_name}.")
-        return None
+        print(f"Failed to fetch or no NOAA data returned for {city_name}. Saving empty file.")
+        with open(filename, 'w') as f:
+            json.dump([], f) # Save an empty JSON array
+    return filename
 
 def fetch_and_save_eia_data(city, eia_base_url, eia_api_key, full_raw_data_path, start_date, end_date):
     """Fetches and saves EIA energy data for a given city."""
@@ -39,15 +42,18 @@ def fetch_and_save_eia_data(city, eia_base_url, eia_api_key, full_raw_data_path,
     print(f"Fetching EIA data for {city_name} (Balancing Authority: {eia_ba_code})...")
     energy_data = fetch_eia_data(eia_base_url, eia_api_key, eia_ba_code, start_date, end_date, city_name=city_name)
 
+    filename = os.path.join(full_raw_data_path, f"eia_{city_name.lower().replace(' ', '_')}_{start_date}_to_{end_date}.json")
+
+    # Always save a file to ensure the city is processed, even if the fetch fails.
     if energy_data:
-        filename = os.path.join(full_raw_data_path, f"eia_{city_name.lower().replace(' ', '_')}_{start_date}_to_{end_date}.json")
         with open(filename, 'w') as f:
             json.dump(energy_data, f, indent=4)
         print(f"Successfully fetched and saved {len(energy_data)} records to {filename}")
-        return filename
     else:
-        print(f"Failed to fetch or no EIA data returned for {city_name}.")
-        return None
+        print(f"Failed to fetch or no EIA data returned for {city_name}. Saving empty file.")
+        with open(filename, 'w') as f:
+            json.dump([], f) # Save an empty JSON array
+    return filename
 
 def _setup_pipeline_parameters(config, args):
     """

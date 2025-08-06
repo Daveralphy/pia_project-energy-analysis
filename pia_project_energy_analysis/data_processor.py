@@ -168,73 +168,75 @@ def merge_and_save_data(weather_df, energy_df, city_name, processed_dir):
     """
     output_path = os.path.join(processed_dir, f"{city_name.lower().replace(' ', '_')}_processed_data.csv")
 
-    if weather_df is not None and energy_df is not None:
-        # Both are available: merge them using an outer join to preserve all data points
+    final_df = None
+
+    # Check if dataframes are not None and not empty before trying to merge
+    has_weather_data = weather_df is not None and not weather_df.empty
+    has_energy_data = energy_df is not None and not energy_df.empty
+
+    if has_weather_data and has_energy_data:
         merged_df = pd.merge(weather_df, energy_df, on='date', how='outer')
-        merged_df['city'] = city_name
-        merged_df.to_csv(output_path, index=False)
-        print(f"Successfully merged and saved processed data for {city_name} to {output_path}")
-    elif weather_df is not None:
-        # Only weather data is available
-        weather_df['city'] = city_name
-        weather_df.to_csv(output_path, index=False)
+        final_df = merged_df
+        print(f"Successfully merged weather and energy data for {city_name}.")
+    elif has_weather_data:
+        final_df = weather_df.copy()
         print(f"Successfully saved processed weather-only data for {city_name} to {output_path}")
-    elif energy_df is not None:
-        # Only energy data is available
-        energy_df['city'] = city_name
-        energy_df.to_csv(output_path, index=False)
+    elif has_energy_data:
+        final_df = energy_df.copy()
         print(f"Successfully saved processed energy-only data for {city_name} to {output_path}")
-    else:
-        # Neither is available
-        print(f"Skipping save for {city_name} as no data was successfully processed.")
-        return
+
+    # Always create a file, even if it's just a placeholder with the city name.
+    if final_df is None:
+        final_df = pd.DataFrame()
+
+    final_df['city'] = city_name
+    final_df.to_csv(output_path, index=False)
+    if final_df.empty:
+        print(f"No data processed for {city_name}. Saved an empty placeholder file.")
 
 def combine_processed_data(processed_dir, output_dir, configured_cities):
     """
-    Combines newly processed data with the existing master file and ensures all
-    configured cities are represented in the final output.
+    Combines all processed data files from the current run into a single, new
+    master data file, ensuring all configured cities are represented. This
+    process overwrites any existing master file.
 
     Args:
         processed_dir (str): The directory containing the processed city CSV files.
         output_dir (str): The directory to save the final master file.
         configured_cities (list): The list of city dictionaries from the config file.
     """
-    print("\n--- Combining All Processed Data ---")
-    master_file_path = os.path.join(output_dir, 'master_energy_weather_data.csv')
+    print("\n--- Combining All Processed Data into a New Master File ---")
     configured_city_names = {city['name'] for city in configured_cities}
-
-    # 1. Load existing master data if it exists
-    if os.path.exists(master_file_path):
-        print(f"Existing master file found at {master_file_path}.")
-        master_df = pd.read_csv(master_file_path)
-
-        # Filter the loaded master data to only include cities that are currently configured.
-        # This removes data for any cities that have been deleted from config.yaml.
-        cities_before_filter = set(master_df['city'].unique())
-        master_df = master_df[master_df['city'].isin(configured_city_names)]
-        cities_after_filter = set(master_df['city'].unique())
-        removed_cities = cities_before_filter - cities_after_filter
-        if removed_cities:
-            print(f"Removing stale city data from master file: {', '.join(removed_cities)}")
-    else:
-        print("No existing master file found. Starting fresh.")
-        master_df = pd.DataFrame()
-
-    # 2. Load all newly processed data
-    newly_processed_files = [os.path.join(processed_dir, f) for f in os.listdir(processed_dir) if f.endswith('_processed_data.csv')]
     
-    if newly_processed_files:
-        new_data_list = [pd.read_csv(file) for file in newly_processed_files if os.path.getsize(file) > 0]
-        if new_data_list:
-            new_data_df = pd.concat(new_data_list, ignore_index=True)
-            # 3. Merge new data into master, updating existing records
-            print("Merging new data into master data...")
-            master_df = pd.concat([master_df, new_data_df], ignore_index=True)
-            master_df.drop_duplicates(subset=['city', 'date'], keep='last', inplace=True)
+    processed_files = [os.path.join(processed_dir, f) for f in os.listdir(processed_dir) if f.endswith('_processed_data.csv')]
+    
+    if not processed_files:
+        print("No processed data files found to combine. Creating a master file with placeholders.")
+        # If no files were processed at all, create a df with just the city names.
+        master_df = pd.DataFrame([{'city': city['name']} for city in configured_cities])
     else:
-        print("No new data was processed in this run.")
+        # Load all processed files into a list of dataframes
+        df_list = []
+        for file in processed_files:
+            try:
+                # read_csv can handle empty files, it will create an empty df
+                df = pd.read_csv(file)
+                df_list.append(df)
+            except pd.errors.EmptyDataError:
+                # This can happen if a file is truly empty (0 bytes)
+                print(f"  - Skipping empty file: {os.path.basename(file)}")
+            except Exception as e:
+                print(f"  - Could not read or process file {os.path.basename(file)}: {e}")
 
-    # 4. Ensure all configured cities are present in the final dataframe
+        if not df_list:
+            print("Could not create any dataframes from processed files. Creating a master file with placeholders.")
+            master_df = pd.DataFrame([{'city': city['name']} for city in configured_cities])
+        else:
+            # Combine all dataframes from the current run
+            master_df = pd.concat(df_list, ignore_index=True)
+
+    # --- Final Validation Step ---
+    # Ensure every city from the configuration is present in the final master dataframe.
     cities_in_master = set(master_df['city'].unique()) if 'city' in master_df.columns else set()
     
     missing_cities = configured_city_names - cities_in_master
@@ -244,10 +246,11 @@ def combine_processed_data(processed_dir, output_dir, configured_cities):
         missing_cities_df = pd.DataFrame([{'city': name} for name in missing_cities])
         master_df = pd.concat([master_df, missing_cities_df], ignore_index=True)
 
-    # 5. Sort and save the final master file
+    # Sort and save the final master file
     if not master_df.empty:
         master_df.sort_values(by=['city', 'date'], inplace=True, na_position='first')
+        master_file_path = os.path.join(output_dir, 'master_energy_weather_data.csv')
         master_df.to_csv(master_file_path, index=False)
-        print(f"Successfully updated master data file at {master_file_path}")
+        print(f"Successfully created new master data file at {master_file_path}")
     else:
         print("Master dataframe is empty. Nothing to save.")
