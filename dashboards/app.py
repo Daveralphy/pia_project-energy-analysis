@@ -303,6 +303,28 @@ def main():
     with st.sidebar:
         # Placeholder for the download button, which will be populated after data filtering.
         download_button_placeholder = st.empty()
+        
+        # --- Data Management Section ---
+        st.markdown("---")
+        st.header("Manage Data")
+
+        with st.expander("Refresh Data", expanded=False):
+            st.info("This will re-run the data pipeline for the selected date range. This may take several minutes.")
+            
+            # Add date inputs for the data refresh
+            col1, col2 = st.columns(2)
+            with col1:
+                refresh_start_date = st.date_input("Fetch Start Date", value=pd.to_datetime('today') - pd.DateOffset(years=1), key="refresh_start")
+            with col2:
+                refresh_end_date = st.date_input("Fetch End Date", value=pd.to_datetime('today') - pd.DateOffset(days=1), key="refresh_end")
+
+            if st.button("🔄 Refresh All Data"):
+                with st.spinner("Pipeline is running... see logs below."):
+                    run_pipeline_from_dashboard(start_date=refresh_start_date, end_date=refresh_end_date)
+                st.success("Pipeline finished! Reloading dashboard with new data...")
+                st.cache_data.clear() # Clear the data cache to force reload
+                time.sleep(3)
+                st.rerun()
 
         # --- Analysis Options Section ---
         st.markdown("---")
@@ -314,7 +336,8 @@ def main():
             key='temp_metric_selector'
         )
         # Add date input dropdowns for start and end dates
-        if not master_df.empty:
+        # More robust check to handle cases where data exists but has no valid dates
+        if not master_df.empty and 'date' in master_df.columns and not master_df['date'].isna().all():
             min_date = master_df['date'].min().date()
             max_date = master_df['date'].max().date()
 
@@ -339,20 +362,6 @@ def main():
             options=city_list,
             key="global_city_filter"
         )
-        
-        # --- Data Management Section ---
-        st.markdown("---")
-        st.header("Manage Data")
-
-        with st.expander("Refresh Data", expanded=False):
-            st.info("This will re-run the entire data pipeline to fetch the latest data for all configured cities. This may take several minutes.")
-            if st.button("🔄 Refresh All Data"):
-                with st.spinner("Pipeline is running... see logs below."):
-                    run_pipeline_from_dashboard()
-                st.success("Pipeline finished! Reloading dashboard with new data...")
-                st.cache_data.clear() # Clear the data cache to force reload
-                time.sleep(3)
-                st.rerun()
 
     # --- Data Filtering ---
     # This section is placed after the sidebar to ensure all filter values are available.
@@ -473,24 +482,13 @@ def main():
                 key="city_yaml_editor"
             )
 
-            st.subheader("Select Date Range for Data Fetch")
-            col1, col2 = st.columns(2)
-            with col1:
-                fetch_start_date = st.date_input("Fetch Start Date", value=pd.to_datetime('today') - pd.DateOffset(years=1))
-            with col2:
-                fetch_end_date = st.date_input("Fetch End Date", value=pd.to_datetime('today') - pd.DateOffset(days=1))
-
-            if st.button("💾 Save Changes & Refresh All Data", key="modal_save_refresh"):
+            if st.button("💾 Save Configuration", key="modal_save_refresh"):
                 try:
                     # Parse the user's edited YAML string
                     new_cities_list = yaml.safe_load(edited_yaml)
                     if save_configuration(new_cities_list):
-                        st.success("Configuration saved successfully! Now running the data pipeline...")
-                        with st.spinner("Pipeline is running... see logs below."):
-                            run_pipeline_from_dashboard(start_date=fetch_start_date, end_date=fetch_end_date)
-                        st.success("Pipeline finished! Reloading dashboard with new data...") 
-                        st.cache_data.clear()
-                        time.sleep(3)
+                        st.success("Configuration saved successfully! Use the 'Refresh Data' tool in the sidebar to fetch data for the new configuration.")
+                        time.sleep(2)
                         st.rerun()
                 except yaml.YAMLError as e:
                     st.error(f"Error parsing YAML. Please check your formatting.\nDetails: {e}")
