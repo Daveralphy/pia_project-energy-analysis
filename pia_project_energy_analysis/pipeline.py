@@ -37,7 +37,11 @@ def fetch_and_save_eia_data(city, eia_base_url, eia_api_key, full_raw_data_path,
     # More robust check for invalid BA codes, including the string 'None' or 'N/A'
     if not eia_ba_code or str(eia_ba_code).strip().upper() in ['NONE', 'N/A']:
         print(f"Skipping EIA data for {city_name}: no valid 'eia_ba_code' in config (found: {eia_ba_code}).")
-        return None
+        # Create an empty file to ensure the city is processed correctly downstream.
+        filename = os.path.join(full_raw_data_path, f"eia_{city_name.lower().replace(' ', '_')}_{start_date}_to_{end_date}.json")
+        with open(filename, 'w') as f:
+            json.dump([], f)
+        return filename
 
     print(f"Fetching EIA data for {city_name} (Balancing Authority: {eia_ba_code})...")
     energy_data = fetch_eia_data(eia_base_url, eia_api_key, eia_ba_code, start_date, end_date, city_name=city_name)
