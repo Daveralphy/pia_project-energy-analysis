@@ -305,6 +305,18 @@ def main():
     
     master_df = load_data()
 
+    # --- Defensive Data Schema Check ---
+    # This is the definitive fix to prevent KeyErrors from incomplete master data files.
+    # It ensures essential columns always exist, even if they are empty.
+    expected_cols = ['TMAX_F', 'TMIN_F', 'energy_mwh', 'date', 'city']
+    for col in expected_cols:
+        if col not in master_df.columns:
+            master_df[col] = pd.NA # Add the column with null values if it's missing
+    
+    # Ensure the date column is always in datetime format after potentially being added.
+    if 'date' in master_df.columns:
+        master_df['date'] = pd.to_datetime(master_df['date'])
+
     with st.sidebar:
         # Placeholder for the download button, which will be populated after data filtering.
         download_button_placeholder = st.empty()
