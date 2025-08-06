@@ -300,20 +300,9 @@ def main():
     
     master_df = load_data()
 
-    # --- Sidebar for Global Controls ---
     with st.sidebar:
-        # --- Data Management Section (Moved to top) ---
-        st.header("Manage Data")
-
-        with st.expander("Refresh Data", expanded=False):
-            st.info("This will re-run the entire data pipeline to fetch the latest data for all configured cities. This may take several minutes.")
-            if st.button("🔄 Refresh All Data"):
-                with st.spinner("Pipeline is running... see logs below."):
-                    run_pipeline_from_dashboard()
-                st.success("Pipeline finished! Reloading dashboard with new data...")
-                st.cache_data.clear() # Clear the data cache to force reload
-                time.sleep(3)
-                st.rerun()
+        # Placeholder for the download button, which will be populated after data filtering.
+        download_button_placeholder = st.empty()
 
         # --- Analysis Options Section ---
         st.markdown("---")
@@ -351,8 +340,19 @@ def main():
             key="global_city_filter"
         )
         
-        # Placeholder for the download button. It will be populated after the data is filtered.
-        download_button_placeholder = st.empty()
+        # --- Data Management Section ---
+        st.markdown("---")
+        st.header("Manage Data")
+
+        with st.expander("Refresh Data", expanded=False):
+            st.info("This will re-run the entire data pipeline to fetch the latest data for all configured cities. This may take several minutes.")
+            if st.button("🔄 Refresh All Data"):
+                with st.spinner("Pipeline is running... see logs below."):
+                    run_pipeline_from_dashboard()
+                st.success("Pipeline finished! Reloading dashboard with new data...")
+                st.cache_data.clear() # Clear the data cache to force reload
+                time.sleep(3)
+                st.rerun()
 
     # --- Data Filtering ---
     # This section is placed after the sidebar to ensure all filter values are available.
@@ -384,7 +384,6 @@ def main():
 
     # --- Add Download Button to Sidebar (now that data is filtered) ---
     with download_button_placeholder.container():
-        st.markdown("---")
         st.header("Export Data")
         
         csv = convert_df_to_csv(display_df)
