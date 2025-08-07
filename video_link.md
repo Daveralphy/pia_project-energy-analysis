@@ -6,9 +6,7 @@ This is a 3-minute video presentation, covering:
 * Key results and insights from the dashboard.
 * Reflections on AI collaboration and lessons learned.
 
-[![Project Video Presentation](http://img.youtube.com/vi/dQw4w9WgXcQ/0.jpg)](http://www.youtube.com/watch?v=dQw4w9WgXcQ "Project Video Presentation")
-
-*(Note: The link above is a placeholder. I will replace `dQw4w9WgXcQ` with my actual YouTube video ID.)*
+[![Project Video Presentation](http://img.youtube.com/vi/S03I_Vgl9Bs/0.jpg)](https://www.youtube.com/watch?v=S03I_Vgl9Bs "Project Video Presentation")
 
 ---
 
