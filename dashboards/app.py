@@ -9,6 +9,7 @@ import yaml
 import subprocess
 import sys
 import time
+import statsmodels.api as sm
 from tenacity import retry, stop_after_attempt, wait_exponential
 import requests
 
@@ -576,14 +577,29 @@ def display_geographic_overview(df, temp_col, temp_label, selected_city):
         st.info("Select one or more cities to display the geographic overview.")
         return
         
-    # This now operates on the FULL dataframe, ensuring consistent ranges for size and color.
-    latest_data = df.loc[df.groupby('city')['date'].idxmax()]
+    # --- Data Preparation for Map ---
+    # 1. Get the latest data for each city
+    latest_data = df.sort_values('date').loc[df.groupby('city')['date'].idxmax()].copy()
+
+    # 2. Calculate % change from the previous day
+    # Get the date of the day before the latest data point
+    previous_day_date = latest_data['date'].min() - pd.Timedelta(days=1)
+    # Filter the original dataframe for that previous day's data
+    previous_day_data = df[df['date'] == previous_day_date][['city', 'energy_mwh']].rename(columns={'energy_mwh': 'energy_prev_day'})
+
+    # 3. Merge to calculate the percentage change
+    if not previous_day_data.empty:
+        map_data = pd.merge(latest_data, previous_day_data, on='city', how='left')
+        map_data['energy_pct_change'] = ((map_data['energy_mwh'] - map_data['energy_prev_day']) / map_data['energy_prev_day']) * 100
+    else:
+        # If there's no previous day data, set the change to NaN
+        map_data = latest_data
+        map_data['energy_pct_change'] = pd.NA
 
     if 'latitude' not in latest_data.columns or latest_data['latitude'].isnull().any():
         st.warning("City coordinates are missing. Cannot display map. Please check `config.yaml`.")
         return
 
-    # Prepare data for map, handling missing energy values gracefully
     map_data = latest_data.dropna(subset=['latitude', 'longitude', temp_col]).copy()
 
     if map_data.empty:
@@ -591,33 +607,39 @@ def display_geographic_overview(df, temp_col, temp_label, selected_city):
         return
 
     # Use a small, constant size for cities with missing energy data to ensure they are still plotted.
-    # Create a new column for hover text that is more informative.
     map_data['size_for_map'] = map_data['energy_mwh'].fillna(1000) # Use a small default size
     map_data['hover_energy_text'] = map_data['energy_mwh'].apply(
         lambda x: f"{x:,.0f} MWh" if pd.notna(x) else "Energy data not available"
     )
+    map_data['hover_pct_change_text'] = map_data.get('energy_pct_change', pd.Series(pd.NA)).apply(
+        lambda x: f"{x:+.1f}% vs yesterday" if pd.notna(x) else "No prior day data"
+    )
 
-    fig = px.scatter_map( # The figure is now always created with data for ALL cities.
+    fig = px.scatter_map(
         map_data,
         lat="latitude",
         lon="longitude",
         size="size_for_map",
-        color="city", # Use city for distinct colors instead of temperature
+        color="energy_mwh", # Color by energy usage as per requirements
         hover_name="city",
-        # Use explicit custom_data for a more robust hover template
-        custom_data=[temp_col, 'hover_energy_text'],
-        color_discrete_sequence=px.colors.qualitative.Vivid, # Use a color scale with distinct colors
+        custom_data=[temp_col, 'hover_energy_text', 'hover_pct_change_text'],
+        color_continuous_scale="RdYlGn_r", # Red-Yellow-Green (reversed) for high-to-low
         size_max=50,
         zoom=3,
         map_style="carto-positron"
     )
-    # Customize the hover label for clarity
+
+    # Customize the hover template to include all required info
     fig.update_traces(hovertemplate=
         f'<b>%{{hovertext}}</b><br>' +
-        f'{temp_label}: %{{customdata[0]:.1f}}°F<br>' +
-        'Energy: %{customdata[1]}<extra></extra>'
+        f'Latest {temp_label}: %{{customdata[0]:.1f}}°F<br>' +
+        'Latest Energy Usage: %{customdata[1]}<br>' +
+        '% Change: %{customdata[2]}<extra></extra>'
     )
-    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+    fig.update_layout(
+        margin={"r":0,"t":0,"l":0,"b":0},
+        coloraxis_colorbar_title_text='Energy (MWh)'
+    )
 
     # If a specific city is selected, hide all other traces.
     if selected_city != 'All Cities':
@@ -668,6 +690,19 @@ def display_time_series(df, temp_col, temp_label, selected_city):
             secondary_y=True
         )
 
+    # --- Add Weekend Shading ---
+    # Find all unique dates in the dataframe that are weekends
+    weekends_df = df[df['date'].dt.weekday >= 5]
+    for d in weekends_df['date'].unique():
+        # Draw a subtle vertical rectangle for each weekend day
+        fig.add_vrect(
+            x0=pd.to_datetime(d) - pd.Timedelta(hours=12),
+            x1=pd.to_datetime(d) + pd.Timedelta(hours=12),
+            fillcolor="rgba(211, 211, 211, 0.25)", # Light grey with transparency
+            layer="below", # Draw below the data lines
+            line_width=0,
+        )
+
     fig.update_layout(
         title_text=title,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
@@ -684,36 +719,53 @@ def display_correlation_analysis(df, temp_col, temp_label):
         st.info("Select one or more cities to see the correlation analysis.")
         return
     
-    # Calculate overall correlation
-    correlation = df[temp_col].corr(df['energy_mwh'])
+    # Drop NaNs to ensure all calculations work correctly
+    plot_df = df.dropna(subset=[temp_col, 'energy_mwh']).copy()
+    if plot_df.empty:
+        st.warning("No overlapping temperature and energy data available for correlation analysis.")
+        return
+
+    # --- Perform OLS Regression using statsmodels ---
+    X = sm.add_constant(plot_df[temp_col]) # Add a constant for the intercept
+    y = plot_df['energy_mwh']
+    model = sm.OLS(y, X).fit()
+    r_squared = model.rsquared
+    correlation = plot_df[temp_col].corr(plot_df['energy_mwh'])
+    intercept, slope = model.params
+
+    # Create the regression line data
+    x_range = pd.Series([plot_df[temp_col].min(), plot_df[temp_col].max()])
+    y_range = intercept + slope * x_range
     
     col1, col2 = st.columns([3, 1])
 
     with col1:
         fig = px.scatter(
-            df,
+            plot_df,
             x=temp_col,
             y="energy_mwh",
             color="city",
-            trendline="ols",
             title="Temperature vs. Energy Consumption"
         )
+        # Add the regression line manually
+        fig.add_traces(go.Scatter(x=x_range, y=y_range, mode='lines', name='Regression Line', line=dict(color='black', dash='dash')))
+
         fig.update_layout(
             xaxis_title=temp_label,
             yaxis_title="Energy Demand (MWh)",
-            margin=dict(l=40, r=10, t=40, b=40) # Add compact margins
+            margin=dict(l=40, r=10, t=40, b=40),
+            legend_title_text='City'
         )
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.metric(label="Overall Correlation Coefficient", value=f"{correlation:.2f}")
+        st.metric(label="R-squared", value=f"{r_squared:.3f}")
+        st.metric(label="Correlation Coefficient (r)", value=f"{correlation:.3f}")
+        st.markdown(f"**Regression Equation:**")
+        st.latex(f"Energy = {intercept:,.0f} + ({slope:,.2f} \\times Temp)")
         st.info("""
-        **Correlation Coefficient:**
-        - **+1:** Perfect positive correlation
-        - **0:** No correlation
-        - **-1:** Perfect negative correlation
-        
-        This value measures the strength and direction of the linear relationship between the selected temperature metric and energy demand.
+        **R-squared:** The proportion of the variance in energy demand that is predictable from the temperature.
+        **Correlation (r):** Measures the strength and direction of the linear relationship.
         """)
 
 def display_usage_patterns_heatmap(df, temp_col, temp_label, selected_city):
@@ -732,9 +784,16 @@ def display_usage_patterns_heatmap(df, temp_col, temp_label, selected_city):
     # Feature Engineering: Create day of week and temperature bins
     plot_df['day_of_week'] = plot_df['date'].dt.day_name()
     
-    # Define temperature bins from -20F to 130F in 10-degree increments
-    bins = list(range(-20, 131, 10))
-    labels = [f"{i} to {i+9}°F" for i in bins[:-1]]
+    # Define temperature bins exactly as per project requirements
+    bins = [-float('inf'), 50, 60, 70, 80, 90, float('inf')]
+    labels = [
+        "<50°F",
+        "50-60°F",
+        "60-70°F",
+        "70-80°F",
+        "80-90°F",
+        ">90°F"
+    ]
     plot_df['temp_bin'] = pd.cut(plot_df[temp_col], bins=bins, labels=labels, right=False)
 
     # Create pivot table for the heatmap
@@ -749,6 +808,7 @@ def display_usage_patterns_heatmap(df, temp_col, temp_label, selected_city):
     # Order the columns by day of week
     days_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     heatmap_data = heatmap_data.reindex(columns=days_order)
+    heatmap_data = heatmap_data.reindex(index=labels) # Ensure y-axis is sorted correctly
 
     fig = px.imshow(
         heatmap_data,
