@@ -281,7 +281,7 @@ A 3-minute video presentation is available, covering:
 * Key results and insights from the dashboard.
 * Reflections on AI collaboration and lessons learned.
 
-**Watch the video here:** [https://youtu.be/S03I_Vgl9Bs](https://youtu.be/S03I_Vgl9Bs)
+**Watch the video here:** [https://youtu.be/aUgApbzkrUI](https://youtu.be/aUgApbzkrUI)
 
 ---
 
