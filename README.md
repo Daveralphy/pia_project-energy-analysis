@@ -43,11 +43,12 @@ Energy companies face significant financial losses due to inaccurate demand fore
 This project delivers the following key components:
 
 1.  **Automated Data Pipeline:** A Python script designed to run daily, fetching fresh weather and energy consumption data for 5 key US cities (New York, Chicago, Houston, Phoenix, Seattle) from NOAA and EIA APIs. It includes robust error handling, logging, and a separate script for initial historical data pull (90 days).
-2.  **Data Quality Report:** Automated checks for missing values, outliers (e.g., extreme high/low temperatures, negative energy usage), and data freshness. A basic report/dashboard component will show these metrics over time.
+2.  **Data Quality Report:** Automated checks for missing values, outliers (e.g., extreme temperatures, negative energy usage), and data freshness. A basic report/dashboard component will show these metrics over time.
 3.  **Analysis Dashboard with Specific Visualizations (Streamlit):**
-    * **Geographic Overview:** An interactive US map showing the latest available data for each city, with marker size representing energy usage and color representing temperature.
-    * **Time Series Analysis:** A dual-axis line chart of high/low temperatures vs. energy consumption over the configured date range, with city selection.
-    * **Correlation Analysis:** A scatter plot of temperature vs. energy consumption, color-coded by city, with a regression line and the overall correlation coefficient.
+    * **Geographic Overview:** Interactive US map showing current city data (temp, usage, % change from yesterday) with color-coding.
+    * **Time Series Analysis:** Dual-axis line chart of temperature vs. energy consumption over 90 days, with city selection and weekend highlighting.
+    * **Correlation Analysis:** Scatter plot of temperature vs. energy consumption, color-coded by city, with regression line, R-squared, and correlation coefficient.
+    * **Usage Patterns Heatmap:** Heatmap of average energy usage by temperature range and day of week, with city filtering and value annotations.
 4.  **Production-Ready Code:** Modular, well-organized Python code with a clear configuration file, comprehensive logging, and thorough documentation (comments, README).
 
 ---
@@ -62,17 +63,14 @@ pia_project-energy-analysis/
 ├── .env                      # Environment variables (e.g., API keys - DO NOT COMMIT!)
 ├── .gitignore                # Specifies files/directories to be ignored by Git
 ├── config/
-│   └── config.yaml           # Cities list, API endpoints, data paths
-├── pia_project_energy_analysis/
-│   ├── __init__.py           # Makes the directory a package
-│   ├── eia_fetcher.py        # Handles EIA API interactions
-│   ├── noaa_fetcher.py       # Handles NOAA API interactions
-│   ├── data_processor.py     # Cleans and transforms data
-│   └── pipeline.py           # Orchestrates the data pipeline
+│   └── config.yaml           # API keys (placeholders), cities list, API endpoints, data paths
+├── src/
+│   ├── data_fetcher.py       # Handles all API interactions, error handling, and retries
+│   ├── data_processor.py     # Cleans, transforms, and prepares fetched data
+│   ├── analysis.py           # Contains functions for statistical analysis
+│   └── pipeline.py           # Orchestrates the data fetching and processing steps
 ├── dashboards/
 │   └── app.py                # Streamlit application for the interactive dashboard
-├── utils/
-│   └── find_ids.py           # Helper script to find NOAA and EIA IDs for new cities
 ├── logs/
 │   └── pipeline.log          # Runtime logs for pipeline execution
 ├── data/
@@ -167,14 +165,6 @@ It's highly recommended to use a virtual environment to manage project dependenc
     * The `config/config.yaml` file is pre-populated with city information, API endpoints, and data paths.
     * Review its content to ensure it matches the project requirements (NOAA station IDs, EIA region codes, city coordinates). You may add custom thresholds for data quality checks here if desired.
 
-### 6. (Optional) Finding IDs for New Cities
-
-If you wish to add new cities to `config.yaml`, you can use the provided helper script to find the necessary `noaa_station_id` and `eia_ba_code`.
-
-```bash
-python utils/find_ids.py
-```
-This interactive script will query the NOAA and EIA APIs to help you find the correct IDs for your desired locations.
 ---
 
 ## How to Run the Pipeline
@@ -291,16 +281,16 @@ A 3-minute video presentation is available, covering:
 * Key results and insights from the dashboard.
 * Reflections on AI collaboration and lessons learned.
 
-**Watch the video here:** [Project Video Presentation](https://www.youtube.com/watch?v=YOUR_VIDEO_ID_HERE)
+**Watch the video here:** [https://youtu.be/S03I_Vgl9Bs](https://youtu.be/S03I_Vgl9Bs)
 
 ---
 
 ## Peer Review
 
 This project was peer-reviewed by:
-* **Reviewer Name:** *(Example: Jane Doe)*
-* **Feedback Received:** *(Example: Jane praised the clarity of the `README.md` but suggested that the error handling in the data fetcher could be more specific about the type of API error. She also found a minor bug where the dashboard's city filter didn't correctly update the correlation plot.)*
-* **Actions Taken:** *(Example: Based on the feedback, I refactored the logging in `data_fetcher.py` to include HTTP status codes in the error messages. I also fixed the state management bug in `dashboards/app.py` to ensure all charts update when the city filter changes.)*
+* **Reviewer Name:** [Name of your peer reviewer]
+* **Feedback Received:** [Summarize key feedback, e.g., "Suggested improvements for error logging," "Found a minor bug in the dashboard filter," "Praised clarity of README."]
+* **Actions Taken:** [Describe how you addressed the feedback, e.g., "Refactored logging module based on suggestion," "Fixed dashboard filtering logic," "Added more inline comments as requested."]
 
 ---
 
