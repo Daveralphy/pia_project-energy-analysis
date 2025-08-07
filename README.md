@@ -288,9 +288,9 @@ A 3-minute video presentation is available, covering:
 ## Peer Review
 
 This project was peer-reviewed by:
-* **Reviewer Name:** [Name of your peer reviewer]
-* **Feedback Received:** [Summarize key feedback, e.g., "Suggested improvements for error logging," "Found a minor bug in the dashboard filter," "Praised clarity of README."]
-* **Actions Taken:** [Describe how you addressed the feedback, e.g., "Refactored logging module based on suggestion," "Fixed dashboard filtering logic," "Added more inline comments as requested."]
+* **Reviewer Name:** Dallan Quass
+* **Feedback Received:** None yet.
+* **Actions Taken:** Pending
 
 ---
 
