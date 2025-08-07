@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timedelta
 import time
 import argparse
+import logging
 from .config_loader import load_configuration
 from .noaa_fetcher import fetch_noaa_data
 from .eia_fetcher import fetch_eia_data
@@ -12,7 +13,7 @@ def fetch_and_save_noaa_data(city, noaa_base_url, noaa_token, full_raw_data_path
     """Fetches and saves NOAA weather data for a given city."""
     city_name = city['name']
     station_id = city['noaa_station_id']
-    print(f"\nFetching NOAA data for {city_name} (Station: {station_id})...")
+    logging.info(f"Fetching NOAA data for {city_name} (Station: {station_id})...")
 
     weather_data = fetch_noaa_data(noaa_base_url, noaa_token, station_id, start_date, end_date, city_name=city_name)
 
@@ -22,9 +23,9 @@ def fetch_and_save_noaa_data(city, noaa_base_url, noaa_token, full_raw_data_path
     if weather_data and 'results' in weather_data and weather_data['results']:
         with open(filename, 'w') as f:
             json.dump(weather_data['results'], f, indent=4)
-        print(f"Successfully fetched and saved {len(weather_data['results'])} records to {filename}")
+        logging.info(f"Successfully fetched and saved {len(weather_data['results'])} records to {filename}")
     else:
-        print(f"Failed to fetch or no NOAA data returned for {city_name}. Saving empty file.")
+        logging.warning(f"Failed to fetch or no NOAA data returned for {city_name}. Saving empty file.")
         with open(filename, 'w') as f:
             json.dump([], f) # Save an empty JSON array
     return filename
@@ -36,14 +37,14 @@ def fetch_and_save_eia_data(city, eia_base_url, eia_api_key, full_raw_data_path,
     
     # More robust check for invalid BA codes, including the string 'None' or 'N/A'
     if not eia_ba_code or str(eia_ba_code).strip().upper() in ['NONE', 'N/A']:
-        print(f"Skipping EIA data for {city_name}: no valid 'eia_ba_code' in config (found: {eia_ba_code}).")
+        logging.warning(f"Skipping EIA data for {city_name}: no valid 'eia_ba_code' in config (found: {eia_ba_code}).")
         # Create an empty file to ensure the city is processed correctly downstream.
         filename = os.path.join(full_raw_data_path, f"eia_{city_name.lower().replace(' ', '_')}_{start_date}_to_{end_date}.json")
         with open(filename, 'w') as f:
             json.dump([], f)
         return filename
 
-    print(f"Fetching EIA data for {city_name} (Balancing Authority: {eia_ba_code})...")
+    logging.info(f"Fetching EIA data for {city_name} (Balancing Authority: {eia_ba_code})...")
     energy_data = fetch_eia_data(eia_base_url, eia_api_key, eia_ba_code, start_date, end_date, city_name=city_name)
 
     filename = os.path.join(full_raw_data_path, f"eia_{city_name.lower().replace(' ', '_')}_{start_date}_to_{end_date}.json")
@@ -52,9 +53,9 @@ def fetch_and_save_eia_data(city, eia_base_url, eia_api_key, full_raw_data_path,
     if energy_data:
         with open(filename, 'w') as f:
             json.dump(energy_data, f, indent=4)
-        print(f"Successfully fetched and saved {len(energy_data)} records to {filename}")
+        logging.info(f"Successfully fetched and saved {len(energy_data)} records to {filename}")
     else:
-        print(f"Failed to fetch or no EIA data returned for {city_name}. Saving empty file.")
+        logging.warning(f"Failed to fetch or no EIA data returned for {city_name}. Saving empty file.")
         with open(filename, 'w') as f:
             json.dump([], f) # Save an empty JSON array
     return filename
@@ -76,7 +77,7 @@ def _setup_pipeline_parameters(config, args):
     cities = config.get('cities', [])
     
     if not all([noaa_base_url, eia_base_url]):
-        print("One or more API base URLs are missing in config.yaml. Exiting.")
+        logging.error("One or more API base URLs are missing in config.yaml. Exiting.")
         return None
 
     # Construct absolute path for the data directory
@@ -93,26 +94,26 @@ def _setup_pipeline_parameters(config, args):
 
     # Define a date range for the data fetch based on command-line arguments
     if args.fetch_range:
-        print(f"Mode: Custom range fetch from {args.fetch_range[0]} to {args.fetch_range[1]}.")
+        logging.info(f"Mode: Custom range fetch from {args.fetch_range[0]} to {args.fetch_range[1]}.")
         try:
             start_date = datetime.strptime(args.fetch_range[0], '%Y-%m-%d')
             end_date = datetime.strptime(args.fetch_range[1], '%Y-%m-%d')
         except ValueError:
-            print("Invalid date format for --fetch-range. Please use YYYY-MM-DD. Exiting.")
+            logging.error("Invalid date format for --fetch-range. Please use YYYY-MM-DD. Exiting.")
             return None
     elif args.fetch_historical:
-        print(f"Mode: Historical fetch for the last {args.fetch_historical} days.")
+        logging.info(f"Mode: Historical fetch for the last {args.fetch_historical} days.")
         end_date = datetime.now()
         start_date = end_date - timedelta(days=args.fetch_historical)
     elif args.fetch_daily:
-        print("Mode: Daily fetch for yesterday's data (yesterday).")
+        logging.info("Mode: Daily fetch for yesterday's data (yesterday).")
         # Set both start and end date to yesterday to fetch a single day's data
         yesterday = datetime.now() - timedelta(days=1)
         start_date = yesterday
         end_date = yesterday
     else:  # Default case: no arguments provided
         default_days = 365
-        print(f"Mode: No argument provided, defaulting to historical fetch for the last {default_days} days (one year).")
+        logging.info(f"Mode: No argument provided, defaulting to historical fetch for the last {default_days} days (one year).")
         end_date = datetime.now()
         start_date = end_date - timedelta(days=default_days)
     
@@ -130,37 +131,37 @@ def _clear_intermediate_data(raw_dir, processed_dir):
     Clears out the raw and processed data directories to ensure a clean pipeline run.
     This prevents stale data from a previous run from contaminating the current one.
     """
-    print("\n--- Clearing Intermediate Data Directories for a Clean Run ---")
+    logging.info("--- Clearing Intermediate Data Directories for a Clean Run ---")
     for directory in [raw_dir, processed_dir]:
         if os.path.exists(directory):
-            print(f"Clearing contents of {directory}...")
+            logging.info(f"Clearing contents of {directory}...")
             for filename in os.listdir(directory):
                 file_path = os.path.join(directory, filename)
                 try:
                     if os.path.isfile(file_path) or os.path.islink(file_path):
                         os.unlink(file_path)
                 except Exception as e:
-                    print(f"Failed to delete {file_path}. Reason: {e}")
+                    logging.error(f"Failed to delete {file_path}. Reason: {e}")
 
 def main(args):
     """
     Main function to orchestrate the data fetching process.
     Accepts parsed command-line arguments.
     """
-    print("--- Starting Data Fetching Process ---")
+    logging.info("--- Starting Data Fetching Process ---")
 
     # 1. Load Configuration
     config, noaa_token, eia_api_key = load_configuration()
 
     if not config:
-        print("Could not load configuration file. Exiting.")
+        logging.error("Could not load configuration file. Exiting.")
         return
     
     if not all([noaa_token, eia_api_key]):
-        print("Could not load configuration or API keys. Exiting.")
+        logging.error("Could not load configuration or API keys. Exiting.")
         return
 
-    print("Configuration and API keys loaded successfully.")
+    logging.info("Configuration and API keys loaded successfully.")
 
     # 2. Setup pipeline parameters from config
     params = _setup_pipeline_parameters(config, args)
@@ -180,7 +181,7 @@ def main(args):
             # eia_ba_code is optional as it's handled gracefully if missing.
             required_keys = ['name', 'noaa_station_id']
             if not all(key in city for key in required_keys):
-                print(f"\nSkipping an entry due to missing keys. Found: {list(city.keys())}. Required: {required_keys}")
+                logging.warning(f"Skipping an entry due to missing keys. Found: {list(city.keys())}. Required: {required_keys}")
                 continue
 
             # Step 1: Fetch raw data
@@ -188,7 +189,7 @@ def main(args):
             eia_file = fetch_and_save_eia_data(city, params["eia_base_url"], eia_api_key, params["full_raw_data_path"], params["start_date"], params["end_date"])
 
             # Step 2: Process any available data
-            print(f"\nProcessing available data for {city['name']}...")
+            logging.info(f"Processing available data for {city['name']}...")
 
             # Process each file if it exists, otherwise the result is None
             weather_df, noaa_warnings = process_noaa_data(noaa_file)
@@ -204,9 +205,7 @@ def main(args):
             # Be a good API citizen: wait 1 second between requests to avoid rate-limiting.
             time.sleep(1)
         except Exception as e:
-            print(f"\n---!!! An unrecoverable error occurred while processing city: {city.get('name', 'Unknown')} !!!---")
-            print(f"    Error: {e}")
-            print(f"    Skipping this city and continuing with the next one.")
+            logging.critical(f"An unrecoverable error occurred while processing city: {city.get('name', 'Unknown')}. Skipping.", exc_info=True)
             all_warnings.append({
                 "file": city.get('name', 'Unknown'),
                 "check": "City Processing Loop",
@@ -222,13 +221,13 @@ def main(args):
     # Step 5: Save the data quality report
     report_path = os.path.join(params["full_output_data_path"], "data_quality_report.json")
     if all_warnings:
-        print(f"\nSaving {len(all_warnings)} data quality warnings to {report_path}...")
+        logging.info(f"Saving {len(all_warnings)} data quality warnings to {report_path}...")
     else:
-        print("\nNo data quality issues found. Creating an empty report file.")
+        logging.info("No data quality issues found. Creating an empty report file.")
     with open(report_path, 'w') as f:
         json.dump(all_warnings, f, indent=4)
 
-    print("\n--- All Processes Finished ---")
+    logging.info("--- All Processes Finished ---")
 
 if __name__ == "__main__":
     main()
