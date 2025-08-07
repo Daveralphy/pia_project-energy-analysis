@@ -1,10 +1,10 @@
 # Video Presentation
 
-This is a 3-minute video presentation, covering:
-* The business problem and its impact.
-* A technical walkthrough of the pipeline architecture and a live demo.
-* Key results and insights from the dashboard.
-* Reflections on AI collaboration and lessons learned.
+This 3-minute video presentation covers:
+* An introduction to the business value of energy demand forecasting.
+* A live demonstration of the interactive dashboard, showcasing its self-sufficient configuration and data refresh capabilities.
+* A technical overview of the automated data pipeline architecture, from data fetching to processing.
+* A walkthrough of the key analytical insights and visualizations available in the dashboard after the data is updated.
 
 [![Project Video Presentation](http://img.youtube.com/vi/S03I_Vgl9Bs/0.jpg)](https://www.youtube.com/watch?v=S03I_Vgl9Bs "Project Video Presentation")
 
@@ -15,69 +15,59 @@ This is a 3-minute video presentation, covering:
 **(Intro Music Fades)**
 
 **Daveal:**
-"Hi, guys! Welcome to my YouTube channel. My name is Raphael Daveal, and in this video, I’ll walk you through how I created a self-sufficient weather and energy analysis dashboard."
+"Hi everyone, my name is Raphael Daveal. Today, I'm walking you through my automated Weather and Energy Analysis Pipeline, a project designed to turn complex data into clear, actionable business intelligence."
 
-"But before we dive in, why is a project like this so important? A recent McKinsey study found that data-driven organizations are **23 times** more likely to acquire customers and **six times** more likely to retain them. That’s the power of data, and it’s what this project is all about."
-
-**(Transition to a graphic or slide about the energy industry)**
+**(Visual: Screen shows the GitHub repository structure, highlighting the `README.md` and the clean folder layout.)**
 
 **Daveal:**
-"Now, imagine you're an energy utility company. You're in a high-stakes balancing act every single day. If you produce too much power, you waste millions on fuel and resources. But if you produce too little, you risk blackouts. This dashboard tackles that exact problem by creating a direct link between weather patterns and energy demand."
+"It all starts here, with a production-ready repository. But the real power is in the dashboard it produces. Let's jump right in."
 
-"It helps energy companies, grid operators, and even renewable energy firms understand how a heatwave in Phoenix or a cold snap in New York will impact energy use. This way, they can optimize power generation, reduce costs, and ensure a stable, reliable energy supply for everyone."
-
-**(Transition to a screen recording of the dashboard)**
+**(Visual: Transition to the Streamlit dashboard. It shows data for two cities: Utah and Connecticut.)**
 
 **Daveal:**
-"So, let's see it in action. Here is the main dashboard. The first thing you'll notice is that it's completely self-contained. Let's start with the configuration."
+"This dashboard is completely self-sufficient. Instead of running scripts in an IDE, all the controls are built right in. Right now, we're analyzing two locations, but let's add more."
 
-**(Show the "Edit Configuration" expander on the main page)**
-
-**Daveal:**
-"Right here on the main page, I can manage my entire list of cities. Let's say I want to add a new one. I can use the 'Find City IDs' tool, select a state like Arkansas, and the dashboard automatically finds reliable, active weather stations for me, even warning me if a station might not have good data."
-
-**(Show yourself selecting a station and adding it to the YAML)**
+**(Visual: Clicks on the 'Edit Configuration' expander. Clicks 'Find City IDs'.)**
 
 **Daveal:**
-"I can select a few, add them to my configuration, and you can see them appear right here in the YAML editor. Once I'm happy with my list of cities, I just click 'Save Configuration'."
+"I can find reliable weather stations directly. Let's add Arkansas... and Maryland. The tool finds active stations for us. Now, let's try Alabama."
 
-**(Show the sidebar)**
-
-**Daveal:**
-"Now, to get the data for this new setup, I just go to the sidebar, pick my date range, and hit 'Refresh All Data'. This kicks off the entire backend pipeline right from the dashboard, fetching and processing everything we need."
-
-**(Show the main dashboard with KPIs)**
+**(Visual: Selects Alabama. A warning message appears: "No reliable stations found with sufficient data.")**
 
 **Daveal:**
-"Once the data is loaded, the dashboard gives us an instant overview with these key metrics: the number of locations we're analyzing, the date range, average temperatures, and the average daily energy consumption."
+"The system automatically flags that there are no reliable stations for Alabama, so we'll skip it. This built-in data validation is key. We'll add New Jersey instead."
 
-**(Walk through the dashboard tabs)**
-
-**Daveal:**
-"On the **Geographic Overview**, we get a map that instantly shows where energy demand is highest. I can hover over any city, like Houston, to get its specific temperature and energy data."
-
-"The **Time Series** tab lets us dive deeper. We can see exactly how energy demand spikes when the temperature rises. We can even compare multiple cities side-by-side to see how different regions react to weather changes."
-
-"The **Correlation Analysis** tab proves this relationship with hard numbers, showing a clear positive correlation between temperature and energy use. This is the kind of data that's essential for building accurate predictive models."
-
-"The **Usage Patterns** heatmap gives us even more granular insights, showing how consumption habits change not just with temperature, but also by the day of the week."
-
-"And finally, the **Data Quality Report** gives us confidence in our analysis by confirming that the data from our pipeline is clean and reliable."
-
-**(Transition to a high-level diagram or a shot of the code in VS Code)**
+**(Visual: Adds the selected cities to the YAML editor in the dashboard. Clicks 'Save Configuration'. Then, goes to the sidebar, selects a date range, and clicks 'Refresh All Data'.)**
 
 **Daveal:**
-"So, how does this all work behind the scenes? The project is built like a professional software application."
+"With our new cities added, I'll trigger a full data refresh directly from the UI. While that runs, let's look at how this was built."
 
-"I started on GitHub by creating a clean repository structure. The core logic is in the `pia_project_energy_analysis` package. Inside, I have two 'fetcher' files that are responsible for retrieving data from the NOAA and EIA APIs. A 'data processor' then takes that raw JSON data, cleans it, and converts it into a clean CSV format. A 'pipeline' file orchestrates this entire process, and a single `run.py` script triggers this entire workflow, which is what gets called automatically when you hit the refresh button on the dashboard."
-
-**(Return to you on camera for the conclusion)**
+**(Visual: Transition to a slide or diagram showing the project lifecycle: Plan -> API Keys -> Code.)**
 
 **Daveal:**
-"So that's it! A fully automated, self-sufficient dashboard that transforms raw data into actionable business intelligence."
+"The project began with careful planning and obtaining API keys from NOAA for weather and EIA for energy data. The code is organized into distinct modules."
 
-"I'd like to end by giving a huge thank you to the Pioneer Artificial Intelligence Academy, headed by Mr. Dallan Quass, for this incredible learning opportunity. I also want to extend my sincere regards to my amazing team lead, Promise, and all my teammates for their support and collaboration."
+**(Visual: Show snippets or file icons for `data_fetcher.py`, `data_processor.py`, `app.py`, and `run.py`.)**
 
-"Thank you so much for watching. If you found this project interesting, please hit the like button, subscribe for more content, and feel free to share it or leave a comment below with any questions. See you in the next one!"
+**Daveal:**
+"'Fetcher' scripts are responsible for grabbing the raw data. The 'processor' then cleans, validates, and transforms it into an analysis-ready format. The `app.py` file contains all the Streamlit code for the dashboard you see. And the magic that connects them is `run.py`—a single script that allows the dashboard's 'refresh' button to execute the entire backend pipeline, making it truly interactive and self-contained."
+
+**(Visual: Transition back to the live Streamlit dashboard. The KPIs at the top now reflect the new number of cities and the updated date range.)**
+
+**Daveal:**
+"And we're back. The pipeline has finished, and our dashboard is updated. You can see our key metrics now include the new cities we added."
+
+**(Visual: Quickly click through each dashboard tab.)**
+
+**Daveal:**
+"We can now explore the new data. The **Geographic Overview** maps out the energy demand hotspots. The **Time Series** chart lets us compare consumption trends across all our new locations. The **Correlation Analysis** proves the strong link between temperature and energy use with hard numbers. The **Heatmap** reveals daily and weekly usage patterns. And finally, the **Data Quality Report** verifies that all the information we just pulled is clean and reliable."
+
+**(Visual: Return to you on camera for the conclusion.)**
+
+**Daveal:**
+"So, in just a few clicks, we expanded our analysis and gained new insights, all without ever leaving the dashboard. This is the power of a well-architected data pipeline."
+
+**Daveal:**
+"A huge thank you to the Pioneer Artificial Intelligence Academy, Elder Quass, my team lead Promise, and all my teammates for their incredible support. Thank you for watching. If you found this interesting, please like, subscribe, and leave a comment below!"
 
 **(Outro Music Fades In)**
