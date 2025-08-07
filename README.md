@@ -319,6 +319,6 @@ This project was peer-reviewed by:
 
 For any questions or feedback, please reach out:
 
-* **Name:** [YOUR_NAME]
-* **Email:** [YOUR_EMAIL]
-* **GitHub:** [Link to your GitHub profile, e.g., `github.com/YourUsername`]
+* **Name:** Raphael Daveal Eferire
+* **Email:** raphaeldaveal@gmail.com
+* **GitHub:** https://github.com/Daveralphy
