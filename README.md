@@ -64,15 +64,15 @@ pia_project-energy-analysis/
 ├── .gitignore                # Specifies files/directories to be ignored by Git
 ├── config/
 │   └── config.yaml           # API keys (placeholders), cities list, API endpoints, data paths
-├── src/
-│   ├── data_fetcher.py       # Handles all API interactions, error handling, and retries
-│   ├── data_processor.py     # Cleans, transforms, and prepares fetched data
-│   ├── analysis.py           # Contains functions for statistical analysis
+├── pia_project_energy_analysis/ # Source code package
+│   ├── __init__.py
+│   ├── config_loader.py      # Loads .env and config.yaml
+│   ├── noaa_fetcher.py       # Fetches weather data from NOAA API
+│   ├── eia_fetcher.py        # Fetches energy data from EIA API
+│   ├── data_processor.py     # Cleans, transforms, and merges data
 │   └── pipeline.py           # Orchestrates the data fetching and processing steps
 ├── dashboards/
 │   └── app.py                # Streamlit application for the interactive dashboard
-├── logs/
-│   └── pipeline.log          # Runtime logs for pipeline execution
 ├── data/
 │   ├── raw/                  # Stores original, un-processed API responses (e.g., JSON, CSV)
 │   └── processed/            # Stores clean, analysis-ready data (e.g., CSV)
@@ -176,7 +176,7 @@ Ensure your virtual environment is activated before running any pipeline scripts
 For initial setup and analysis, you'll need 90 days of historical data.
 
 ```bash
-python src/pipeline.py --fetch-historical 90
+python run.py --fetch-historical 90
 ```
 This command will fetch 90 days of data, process it, and store it in `data/processed/`. Logs will be written to `logs/pipeline.log`.
 
