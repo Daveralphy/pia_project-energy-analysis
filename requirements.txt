@@ -1,0 +1,12 @@
+matplotlib
+pandas
+numpy
+scipy
+pvlib
+requests
+streamlit
+plotly
+python-dotenv
+pyyaml
+tenacity
+statsmodels

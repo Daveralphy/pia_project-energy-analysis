@@ -200,11 +200,12 @@ To automate daily data fetches on Linux or macOS, you can use `cron`.
 2.  Add a line like the following to run the pipeline daily (e.g., at 3:00 AM UTC). Replace `/path/to/your/project` with the absolute path to your `pia_project-energy-analysis` directory.
 
     ```cron
-    0 3 * * * /path/to/your/project/.venv/bin/python /path/to/your/project/src/pipeline.py --fetch-daily >> /path/to/your/project/logs/cron.log 2>&1
+    0 3 * * * /path/to/your/project/.venv/bin/python /path/to/your/project/run.py --fetch-daily --pipeline-only >> /path/to/your/project/logs/cron.log 2>&1
     ```
     * `0 3 * * *`: Runs at 03:00 every day.
     * `/path/to/your/project/.venv/bin/python`: Absolute path to your virtual environment's Python interpreter.
-    * `>> /path/to/your/project/logs/cron.log 2>&1`: Redirects all output (stdout and stderr) to a cron-specific log file for debugging.
+    * `--pipeline-only`: Ensures that only the data pipeline runs, without attempting to launch the dashboard.
+    * `>> ...`: Redirects all output (stdout and stderr) to a cron-specific log file for debugging.
 
 ### Scheduling with Task Scheduler (Windows)
 
@@ -216,23 +217,27 @@ For Windows, use the Task Scheduler.
 4.  **Trigger:** Daily, specify a time (e.g., 3:00 AM).
 5.  **Action:** "Start a program"
 6.  **Program/script:** `C:\path\to\your\pia_project-energy-analysis\.venv\Scripts\python.exe` (Replace with your actual path)
-7.  **Add arguments (optional):** `src/pipeline.py --fetch-daily`
-8.  **Start in (optional):** `C:\path\to\your\pia_project-energy-analysis` (Replace with your actual path)
+7.  **Add arguments (optional):** `run.py --fetch-daily --pipeline-only`
+8.  **Start in (optional):** `C:\path\to\your\pia_project-energy-analysis` (This is important! Set it to your project's root directory)
 9.  Finish the wizard. You might need to adjust user permissions in the task's properties to "Run with highest privileges".
 
----
 
 ## How to Run the Dashboard
 
-The interactive dashboard is built with Streamlit.
+The interactive dashboard is built with Streamlit. The recommended way to launch it is via the main `run.py` script, which ensures the data is up-to-date before launching the UI.
 
 1.  **Ensure your virtual environment is activated.**
 2.  **Navigate to the project root directory.**
-3.  **Run the Streamlit application:**
+3.  **Run the application:**
+    ```bash
+    python run.py
+    ```
+    This will first run the pipeline (using the default 365-day historical fetch if no arguments are given) and then automatically launch the dashboard in your web browser.
+
+    **To launch the dashboard directly without running the pipeline first:**
     ```bash
     streamlit run dashboards/app.py
     ```
-    This will open the dashboard in your default web browser.
 
 ---
 
