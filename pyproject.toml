@@ -16,7 +16,7 @@ dependencies = [
     "tenacity",
     "statsmodels",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.9, !=3.9.7"
 
 [build-system]
 requires = ["setuptools>=61.0"]
