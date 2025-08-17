@@ -125,7 +125,7 @@ cd pia_project-energy-analysis
     ```
     This command reads `pyproject.toml` and installs all required libraries. The `-e` (editable) flag is recommended for development, as it allows your code changes to take effect immediately without reinstalling.
 
-### 5. Configure API Keys
+### 5. Configure API Keys for Local Development
 1.  In the project root, create a file named `.env`.
 2.  Add your API keys to this file:
     ```
@@ -134,6 +134,30 @@ cd pia_project-energy-analysis
     EIA_API_KEY="YOUR_EIA_KEY_HERE"
     ```
 3.  Save the file. It is already listed in `.gitignore` and will not be committed.
+
+---
+## Deployment
+
+To deploy this application to a service like Streamlit Community Cloud, you must provide your API keys as environment variables (or "secrets") in the platform's settings. **Do not commit your `.env` file to your repository.**
+
+### Deploying to Streamlit Community Cloud
+
+1.  **Push your code to a public GitHub repository.** Ensure your `.gitignore` is correctly excluding your local `.env` file and data directories.
+2.  **Log in to share.streamlit.io** and click "New app".
+3.  **Select your repository** and the correct branch.
+4.  The "Main file path" should be `dashboards/app.py`.
+5.  **Add your secrets:**
+    *   Click on the "Advanced settings..." dropdown.
+    *   In the "Secrets" section, add your API keys exactly as they appear in your `.env` file:
+        ```toml
+        # Streamlit Secrets (secrets.toml format)
+        NOAA_TOKEN = "YOUR_NOAA_TOKEN_HERE"
+        EIA_API_KEY = "YOUR_EIA_KEY_HERE"
+        ```
+    *   Click "Save".
+6.  **Click "Deploy!".**
+
+Streamlit will securely inject these secrets as environment variables, and your application's `config_loader.py` will automatically pick them up using `os.getenv()`.
 
 ---
 ## Usage
