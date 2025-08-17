@@ -1,9 +1,0 @@
-requests
-pandas
-streamlit>=1.33.0
-plotly
-scipy
-python-dotenv
-pyyaml
-tenacity
-statsmodels
