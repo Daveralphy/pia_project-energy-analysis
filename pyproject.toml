@@ -11,13 +11,16 @@ dependencies = [
     "streamlit>=1.33.0",
     "plotly",
     "scipy",
-    "python-dotenv", # For loading API keys from .env
-    "pyyaml",        # For loading config.yaml
-    "tenacity",      # For robust API retries with exponential backoff
-    "statsmodels",   # Required for OLS trendline in plotly
+    "python-dotenv",
+    "pyyaml",
+    "tenacity",
+    "statsmodels",
 ]
 requires-python = ">=3.9"
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["pia_project_energy_analysis"]

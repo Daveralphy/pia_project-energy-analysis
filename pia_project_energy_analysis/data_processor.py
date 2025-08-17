@@ -4,7 +4,6 @@ import os
 
 def _convert_temp_to_fahrenheit(temp_in_c):
     """Converts temperature from Celsius to Fahrenheit."""
-    # The NOAA API with units=metric returns values in degrees Celsius.
     if pd.isna(temp_in_c):
         return None
     fahrenheit = (temp_in_c * 9/5) + 32
@@ -25,17 +24,13 @@ def process_noaa_data(raw_file_path):
         with open(raw_file_path, 'r') as f:
             data = json.load(f)
         
-        # Handle empty data case gracefully
         if not data:
             print(f"  - No data found in NOAA file {os.path.basename(raw_file_path)}. Returning empty dataframe.")
-            # Return an empty dataframe with the expected columns
             return pd.DataFrame(columns=['date', 'TMAX_F', 'TMIN_F']), []
         
         df = pd.DataFrame(data)
         df['date'] = pd.to_datetime(df['date']).dt.date
         
-        # Data Quality Check: Look for duplicate datatype entries for the same date before pivoting.
-        # This prevents the pivot operation from failing with a ValueError.
         if df.duplicated(subset=['date', 'datatype']).any():
             duplicates = df[df.duplicated(subset=['date', 'datatype'], keep=False)].sort_values(by=['date', 'datatype'])
             issue = f"Duplicate weather data points found. This can cause processing errors. Taking first entry."
@@ -49,22 +44,16 @@ def process_noaa_data(raw_file_path):
             print(f"  [!] DATA QUALITY WARNING for {os.path.basename(raw_file_path)}: {issue}")
             df.drop_duplicates(subset=['date', 'datatype'], keep='first', inplace=True)
 
-        # Pivot the table to get TMAX and TMIN as columns
         weather_df = df.pivot(index='date', columns='datatype', values='value').reset_index()
         
-        # Ensure TMAX and TMIN columns exist, creating them with NaN if they don't.
-        # This makes the function resilient to stations that only report one metric.
         if 'TMAX' not in weather_df.columns:
             weather_df['TMAX'] = pd.NA
         if 'TMIN' not in weather_df.columns:
             weather_df['TMIN'] = pd.NA
 
-        # Convert temperatures to Fahrenheit
         weather_df['TMAX_F'] = weather_df['TMAX'].apply(_convert_temp_to_fahrenheit)
         weather_df['TMIN_F'] = weather_df['TMIN'].apply(_convert_temp_to_fahrenheit)
         
-        # Data Quality Check: Flag days where TMIN > TMAX, a logical impossibility.
-        # Corrected boolean indexing for safety
         valid_temps_df = weather_df.dropna(subset=['TMIN_F', 'TMAX_F'])
         invalid_temp_rows = valid_temps_df[valid_temps_df['TMIN_F'] > valid_temps_df['TMAX_F']]
         if not invalid_temp_rows.empty:
@@ -83,7 +72,6 @@ def process_noaa_data(raw_file_path):
 
         return weather_df[['date', 'TMAX_F', 'TMIN_F']], warnings
     except ValueError as e:
-        # This can happen if pivot fails due to duplicate data from the API
         error_message = f"ValueError during processing of NOAA file {os.path.basename(raw_file_path)}: {e}"
         print(f"  [!] {error_message}")
         warnings.append({
@@ -93,12 +81,11 @@ def process_noaa_data(raw_file_path):
             "message": f"Could not pivot data, likely due to duplicate TMAX/TMIN values for a single day. Error: {e}",
             "details": {}
         })
-        return None, warnings # Return None for the dataframe, but include the critical warning
+        return None, warnings 
     except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
         print(f"Error processing NOAA file {raw_file_path}: {e}")
         return None, []
     except Exception as e:
-        # Catch-all for any other unexpected errors
         print(f"An unexpected error occurred while processing {raw_file_path}: {e}")
         return None, []
 
@@ -117,25 +104,19 @@ def process_eia_data(raw_file_path):
         with open(raw_file_path, 'r') as f:
             data = json.load(f)
         
-        # Handle empty data case gracefully
         if not data:
             print(f"  - No data found in EIA file {os.path.basename(raw_file_path)}. Returning empty dataframe.")
             return pd.DataFrame(columns=['date', 'energy_mwh']), []
 
         df = pd.DataFrame(data)
-        # Convert period to datetime and extract only the date part
         df['date'] = pd.to_datetime(df['period']).dt.date
         df.rename(columns={'value': 'energy_mwh'}, inplace=True)
         
-        # Ensure the energy column is numeric before aggregation. Coerce errors to NaN.
         df['energy_mwh'] = pd.to_numeric(df['energy_mwh'], errors='coerce')
         
-        # Group by the new date column and sum the energy values for each day
         daily_energy_df = df.groupby('date')['energy_mwh'].sum().reset_index()
-        # Round the summed energy value to two decimal places
         daily_energy_df['energy_mwh'] = daily_energy_df['energy_mwh'].round(2)
 
-        # Data Quality Check: Flag days with negative energy consumption.
         negative_energy_rows = daily_energy_df[daily_energy_df['energy_mwh'] < 0]
         if not negative_energy_rows.empty:
             warning_msg = f"DATA QUALITY WARNING for {os.path.basename(raw_file_path)}:"
@@ -175,7 +156,6 @@ def merge_and_save_data(weather_df, energy_df, city_name, processed_dir):
 
     final_df = None
 
-    # Check if dataframes are not None and not empty before trying to merge
     has_weather_data = weather_df is not None and not weather_df.empty
     has_energy_data = energy_df is not None and not energy_df.empty
 
@@ -190,12 +170,9 @@ def merge_and_save_data(weather_df, energy_df, city_name, processed_dir):
         final_df = energy_df.copy()
         print(f"Successfully saved processed energy-only data for {city_name} to {output_path}")
 
-    # Always create a file, even if it's just a placeholder with the city name.
     if final_df is None:
         final_df = pd.DataFrame()
 
-    # Enforce a consistent schema to prevent KeyErrors in the dashboard
-    # if a data source is completely missing for a run.
     expected_cols = ['date', 'TMAX_F', 'TMIN_F', 'energy_mwh']
     for col in expected_cols:
         if col not in final_df.columns:
@@ -224,18 +201,14 @@ def combine_processed_data(processed_dir, output_dir, configured_cities):
     
     if not processed_files:
         print("No processed data files found to combine. Creating a master file with placeholders.")
-        # If no files were processed at all, create a df with just the city names.
         master_df = pd.DataFrame([{'city': city['name']} for city in configured_cities])
     else:
-        # Load all processed files into a list of dataframes
         df_list = []
         for file in processed_files:
             try:
-                # read_csv can handle empty files, it will create an empty df
                 df = pd.read_csv(file)
                 df_list.append(df)
             except pd.errors.EmptyDataError:
-                # This can happen if a file is truly empty (0 bytes)
                 print(f"  - Skipping empty file: {os.path.basename(file)}")
             except Exception as e:
                 print(f"  - Could not read or process file {os.path.basename(file)}: {e}")
@@ -244,11 +217,8 @@ def combine_processed_data(processed_dir, output_dir, configured_cities):
             print("Could not create any dataframes from processed files. Creating a master file with placeholders.")
             master_df = pd.DataFrame([{'city': city['name']} for city in configured_cities])
         else:
-            # Combine all dataframes from the current run
             master_df = pd.concat(df_list, ignore_index=True)
 
-    # --- Final Validation Step ---
-    # Ensure every city from the configuration is present in the final master dataframe.
     cities_in_master = set(master_df['city'].unique()) if 'city' in master_df.columns else set()
     
     missing_cities = configured_city_names - cities_in_master
@@ -258,13 +228,11 @@ def combine_processed_data(processed_dir, output_dir, configured_cities):
         missing_cities_df = pd.DataFrame([{'city': name} for name in missing_cities])
         master_df = pd.concat([master_df, missing_cities_df], ignore_index=True)
 
-    # Enforce a consistent schema on the final master dataframe before saving.
     expected_cols = ['date', 'TMAX_F', 'TMIN_F', 'energy_mwh']
     for col in expected_cols:
         if col not in master_df.columns:
             master_df[col] = pd.NA
 
-    # Sort and save the final master file
     if not master_df.empty:
         master_df.sort_values(by=['city', 'date'], inplace=True, na_position='first')
         master_file_path = os.path.join(output_dir, 'master_energy_weather_data.csv')

@@ -11,15 +11,13 @@ def _is_server_error(response):
     wait=wait_exponential(multiplier=1, min=2, max=10),
     stop=stop_after_attempt(3),
     retry=(retry_if_exception_type(requests.exceptions.RequestException) | retry_if_result(_is_server_error)),
-    reraise=True  # Reraise the last exception if all retries fail
+    reraise=True
 )
 def _make_noaa_api_request(url, headers, params, log_identifier):
     """
     Makes a single, robust request to the NOAA API, decorated to handle retries.
     """
     response = requests.get(url, headers=headers, params=params, timeout=20)
-    # If it's a client error (4xx), we don't want to retry. The main function will handle it.
-    # If it's a server error (5xx), tenacity's `retry_if_result` will trigger a retry.
     return response
  
 def fetch_noaa_data(base_url, token, station_id, start_date, end_date, datatypes='TMAX,TMIN', city_name=None):
@@ -46,16 +44,13 @@ def fetch_noaa_data(base_url, token, station_id, start_date, end_date, datatypes
     }
     endpoint_url = f"{base_url.rstrip('/')}/data"
     all_results = []
-    api_limit_per_request = 1000  # NOAA's max limit per request
+    api_limit_per_request = 1000
 
-    # Convert string dates to datetime objects for calculations
     start_date_dt = datetime.strptime(start_date, '%Y-%m-%d')
     end_date_dt = datetime.strptime(end_date, '%Y-%m-%d')
     current_start_dt = start_date_dt
 
-    # Loop through the date range in year-long (or smaller) chunks
     while current_start_dt <= end_date_dt:
-        # Calculate the end of the current chunk (max 1 year)
         chunk_end_dt = current_start_dt + timedelta(days=364)
         if chunk_end_dt > end_date_dt:
             chunk_end_dt = end_date_dt
@@ -65,7 +60,6 @@ def fetch_noaa_data(base_url, token, station_id, start_date, end_date, datatypes
 
         print(f"\nFetching NOAA data chunk for {log_identifier} from {chunk_start_str} to {chunk_end_str}...")
 
-        # --- Pagination logic for the current chunk ---
         offset = 1
         while True:
             params = {
@@ -101,7 +95,6 @@ def fetch_noaa_data(base_url, token, station_id, start_date, end_date, datatypes
             offset += len(results_this_page)
             time.sleep(0.2)
 
-        # Move to the next chunk
         current_start_dt = chunk_end_dt + timedelta(days=1)
 
     return {'results': all_results}
